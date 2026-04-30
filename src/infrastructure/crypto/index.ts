@@ -5,3 +5,14 @@ export {
   InMemoryKeyStore,
   NativeEncryptionService,
 } from './EncryptionService'
+
+export type {
+  IRecoveryKitService,
+  RecoveryKit,
+  SecuritySettings,
+} from './RecoveryKitService'
+export {
+  InMemoryRecoveryKitService,
+  NativeRecoveryKitService,
+  BIP39_WORDLIST,
+} from './RecoveryKitService'
