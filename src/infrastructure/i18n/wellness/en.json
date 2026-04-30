@@ -1,0 +1,159 @@
+{
+  "phases": {
+    "menstrual": [
+      {
+        "id": "menstrual-nutrition-1",
+        "category": "nutrition",
+        "title": "Anti-inflammatory diet",
+        "content": "During your period, focus on foods rich in omega-3 (salmon, sardines, walnuts) and magnesium (dark chocolate, legumes, spinach). These nutrients help reduce prostaglandins responsible for cramps.",
+        "modes": null
+      },
+      {
+        "id": "menstrual-nutrition-2",
+        "category": "nutrition",
+        "title": "Hydration and herbal teas",
+        "content": "Drink plenty of water and warm herbal teas (chamomile, ginger). Heat helps relax uterine muscles and relieve pain. Avoid alcohol and caffeine, which can worsen cramps.",
+        "modes": null
+      },
+      {
+        "id": "menstrual-self-care-1",
+        "category": "self_care",
+        "title": "Rest and heat therapy",
+        "content": "Allow yourself to rest. A hot water bottle on your lower abdomen or lower back can effectively relieve menstrual cramps. Warm baths can also help relax muscles.",
+        "modes": null
+      },
+      {
+        "id": "menstrual-self-care-2",
+        "category": "self_care",
+        "title": "Pain management",
+        "content": "If pain is intense, non-steroidal anti-inflammatory drugs (ibuprofen) taken at the onset of your period can be effective. Consult your doctor if pain is debilitating.",
+        "modes": null
+      },
+      {
+        "id": "menstrual-exercise-1",
+        "category": "exercise",
+        "title": "Gentle movement",
+        "content": "Light walking or gentle yoga can help relieve cramps by improving blood circulation. Avoid intense exercise if you feel tired — listen to your body.",
+        "modes": null
+      }
+    ],
+    "follicular": [
+      {
+        "id": "follicular-exercise-1",
+        "category": "exercise",
+        "title": "Embrace your rising energy",
+        "content": "The follicular phase is ideal for intense physical activity. Estrogen gradually increases, improving your endurance, muscle strength, and recovery. This is a great time to try new sports or increase workout intensity.",
+        "modes": null
+      },
+      {
+        "id": "follicular-exercise-2",
+        "category": "exercise",
+        "title": "Strength training and cardio",
+        "content": "Your body responds better to resistance training during this phase. Strength training, HIIT, or running sessions will be particularly beneficial. Take advantage of this high-energy window.",
+        "modes": null
+      },
+      {
+        "id": "follicular-nutrition-1",
+        "category": "nutrition",
+        "title": "Protein and cruciferous vegetables",
+        "content": "Prioritize lean proteins (chicken, legumes, tofu) to support muscle growth. Cruciferous vegetables (broccoli, cauliflower, Brussels sprouts) help metabolize excess estrogen.",
+        "modes": null
+      },
+      {
+        "id": "follicular-self-care-1",
+        "category": "self_care",
+        "title": "Creativity and new projects",
+        "content": "Rising estrogen stimulates dopamine and serotonin, boosting creativity and motivation. This is an excellent time to start new projects, make important decisions, or learn something new.",
+        "modes": null
+      }
+    ],
+    "ovulation": [
+      {
+        "id": "ovulation-general-1",
+        "category": "self_care",
+        "title": "Peak energy and confidence",
+        "content": "Ovulation coincides with peak estrogen and testosterone levels. You may feel more sociable, confident, and energetic. Use this time for important social interactions and activities that require presence.",
+        "modes": ["general"]
+      },
+      {
+        "id": "ovulation-ttc-1",
+        "category": "medical",
+        "title": "Peak fertility window",
+        "content": "You are in your peak fertility window. Intercourse during the 5 days before ovulation and on the day of ovulation offers the best chances of conception. Sperm can survive up to 5 days in the female reproductive tract.",
+        "modes": ["trying_to_conceive"]
+      },
+      {
+        "id": "ovulation-ttc-2",
+        "category": "medical",
+        "title": "Signs of ovulation",
+        "content": "Watch for natural ovulation signs: mild pelvic pain (mittelschmerz), clear and stretchy cervical mucus (like egg white), and a slight rise in basal body temperature. These signs can confirm ovulation.",
+        "modes": ["trying_to_conceive"]
+      },
+      {
+        "id": "ovulation-nc-1",
+        "category": "medical",
+        "title": "High-risk days",
+        "content": "You are in your peak fertility window. If you practice natural contraception, be especially careful during these days. The calendar method alone is not sufficiently reliable — combine it with other indicators (temperature, cervical mucus).",
+        "modes": ["natural_contraception"]
+      },
+      {
+        "id": "ovulation-nc-2",
+        "category": "medical",
+        "title": "Limits of natural contraception",
+        "content": "Natural contraception (symptothermal method) has a failure rate of 0.4 to 5% with perfect use. It requires rigorous training and daily monitoring. Consult a healthcare professional for appropriate guidance.",
+        "modes": ["natural_contraception"]
+      },
+      {
+        "id": "ovulation-exercise-1",
+        "category": "exercise",
+        "title": "Peak athletic performance",
+        "content": "Your pain tolerance and coordination are at their highest during ovulation. This is the ideal time for sports competitions or your most demanding training sessions.",
+        "modes": null
+      }
+    ],
+    "luteal": [
+      {
+        "id": "luteal-nutrition-1",
+        "category": "nutrition",
+        "title": "Magnesium for PMS",
+        "content": "During the luteal phase, magnesium needs increase. Eat magnesium-rich foods (almonds, pumpkin seeds, spinach, dark chocolate) to reduce PMS symptoms: irritability, water retention, and cramps.",
+        "modes": null
+      },
+      {
+        "id": "luteal-nutrition-2",
+        "category": "nutrition",
+        "title": "Stabilize blood sugar",
+        "content": "Sugar cravings are common in the luteal phase due to falling serotonin levels. Choose complex carbohydrates (oats, sweet potato, legumes) that stabilize blood sugar and reduce cravings. Avoid refined sugars that worsen mood swings.",
+        "modes": null
+      },
+      {
+        "id": "luteal-self-care-1",
+        "category": "self_care",
+        "title": "Managing PMS",
+        "content": "If you suffer from PMS, practice relaxation techniques: meditation, deep breathing, restorative yoga. Reduce stress as much as possible — cortisol amplifies PMS symptoms. Get enough sleep.",
+        "modes": null
+      },
+      {
+        "id": "luteal-self-care-2",
+        "category": "self_care",
+        "title": "Slow down and recharge",
+        "content": "The luteal phase is naturally a time of slowing down. Reduce social commitments if you feel the need. Give yourself time for calm, restorative activities: reading, baths, walks in nature.",
+        "modes": null
+      },
+      {
+        "id": "luteal-exercise-1",
+        "category": "exercise",
+        "title": "Moderate exercise",
+        "content": "Prefer moderate-intensity exercise: yoga, pilates, swimming, walking. Regular exercise reduces PMS symptoms by releasing endorphins. Avoid very intense workouts that can worsen fatigue.",
+        "modes": null
+      },
+      {
+        "id": "luteal-medical-1",
+        "category": "medical",
+        "title": "Severe PMS: when to seek help",
+        "content": "If your premenstrual symptoms are severe and significantly affect your quality of life (PMDD — premenstrual dysphoric disorder), consult a doctor or gynecologist. Effective treatments are available.",
+        "modes": null
+      }
+    ]
+  }
+}

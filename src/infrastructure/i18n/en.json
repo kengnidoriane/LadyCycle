@@ -1,0 +1,111 @@
+{
+  "app": {
+    "name": "LadyCycle",
+    "tagline": "Track your cycle with confidence"
+  },
+  "calendar": {
+    "title": "Calendar",
+    "today": "Today",
+    "phases": {
+      "menstrual": "Menstrual phase",
+      "follicular": "Follicular phase",
+      "ovulation": "Ovulation",
+      "luteal": "Luteal phase"
+    }
+  },
+  "period": {
+    "record": "Record my period",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "predictions": {
+    "nextPeriod": "Next period",
+    "ovulation": "Predicted ovulation",
+    "fertileWindow": "Fertile window",
+    "confidence": {
+      "low": "Low confidence",
+      "medium": "Medium confidence",
+      "high": "High confidence",
+      "notEnoughData": "Not enough data",
+      "tooIrregular": "Cycle too irregular (σ > 7 days)"
+    }
+  },
+  "symptoms": {
+    "title": "Symptoms",
+    "add": "Add a symptom",
+    "categories": {
+      "pain": "Pain",
+      "mood": "Mood",
+      "energy": "Energy",
+      "physical": "Physical symptoms",
+      "sleep": "Sleep"
+    },
+    "intensity": "Intensity (1-5)"
+  },
+  "statistics": {
+    "title": "Statistics",
+    "averageCycleLength": "Average cycle length",
+    "averageMenstruationLength": "Average period length",
+    "regularity": {
+      "regular": "Regular",
+      "irregular": "Irregular",
+      "veryIrregular": "Very irregular"
+    },
+    "exceptionalCycles": "Exceptional cycles excluded"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "trackingMode": "Tracking mode",
+    "notifications": "Notifications",
+    "security": "Security",
+    "cloudBackup": "Cloud backup"
+  },
+  "trackingMode": {
+    "general": "General tracking",
+    "tryingToConceive": "Trying to conceive",
+    "naturalContraception": "Natural contraception"
+  },
+  "notifications": {
+    "periodIn3Days": "Your period is expected in 3 days",
+    "periodTomorrow": "Your period is expected tomorrow",
+    "fertileWindowTomorrow": "Your fertile window starts tomorrow"
+  },
+  "errors": {
+    "invalidDateRange": "End date must be on or after start date",
+    "missingField": "This field is required",
+    "saveFailed": "Save failed. Please try again.",
+    "loadFailed": "Failed to load data. Please try again."
+  },
+  "cycle": {
+    "markExceptional": "Mark as exceptional",
+    "unmarkExceptional": "Remove exceptional mark",
+    "exceptionalReasons": {
+      "illness": "Illness",
+      "stress": "Intense stress",
+      "travel": "Travel"
+    }
+  },
+  "recoveryKit": {
+    "title": "Recovery kit",
+    "generate": "Generate my kit",
+    "save": "Save the kit",
+    "warning": "Keep this kit in a safe place. Without it, you will not be able to restore your encrypted data."
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "loading": "Loading…",
+    "error": "An error occurred"
+  }
+}

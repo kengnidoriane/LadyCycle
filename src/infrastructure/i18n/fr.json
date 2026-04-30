@@ -1,0 +1,111 @@
+{
+  "app": {
+    "name": "LadyCycle",
+    "tagline": "Suivez votre cycle en toute confiance"
+  },
+  "calendar": {
+    "title": "Calendrier",
+    "today": "Aujourd'hui",
+    "phases": {
+      "menstrual": "Phase menstruelle",
+      "follicular": "Phase folliculaire",
+      "ovulation": "Ovulation",
+      "luteal": "Phase lutéale"
+    }
+  },
+  "period": {
+    "record": "Enregistrer mes règles",
+    "startDate": "Date de début",
+    "endDate": "Date de fin",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "edit": "Modifier",
+    "delete": "Supprimer"
+  },
+  "predictions": {
+    "nextPeriod": "Prochaines règles",
+    "ovulation": "Ovulation prédite",
+    "fertileWindow": "Période féconde",
+    "confidence": {
+      "low": "Confiance faible",
+      "medium": "Confiance moyenne",
+      "high": "Confiance élevée",
+      "notEnoughData": "Pas assez de données",
+      "tooIrregular": "Cycle trop irrégulier (σ > 7 jours)"
+    }
+  },
+  "symptoms": {
+    "title": "Symptômes",
+    "add": "Ajouter un symptôme",
+    "categories": {
+      "pain": "Douleurs",
+      "mood": "Humeur",
+      "energy": "Énergie",
+      "physical": "Symptômes physiques",
+      "sleep": "Sommeil"
+    },
+    "intensity": "Intensité (1-5)"
+  },
+  "statistics": {
+    "title": "Statistiques",
+    "averageCycleLength": "Durée moyenne du cycle",
+    "averageMenstruationLength": "Durée moyenne des règles",
+    "regularity": {
+      "regular": "Régulier",
+      "irregular": "Irrégulier",
+      "veryIrregular": "Très irrégulier"
+    },
+    "exceptionalCycles": "Cycles exceptionnels exclus"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "language": "Langue",
+    "trackingMode": "Mode de suivi",
+    "notifications": "Notifications",
+    "security": "Sécurité",
+    "cloudBackup": "Sauvegarde cloud"
+  },
+  "trackingMode": {
+    "general": "Suivi général",
+    "tryingToConceive": "Essai bébé",
+    "naturalContraception": "Contraception naturelle"
+  },
+  "notifications": {
+    "periodIn3Days": "Vos règles sont prévues dans 3 jours",
+    "periodTomorrow": "Vos règles sont prévues demain",
+    "fertileWindowTomorrow": "Votre période féconde commence demain"
+  },
+  "errors": {
+    "invalidDateRange": "La date de fin doit être postérieure ou égale à la date de début",
+    "missingField": "Ce champ est obligatoire",
+    "saveFailed": "Échec de la sauvegarde. Veuillez réessayer.",
+    "loadFailed": "Échec du chargement des données. Veuillez réessayer."
+  },
+  "cycle": {
+    "markExceptional": "Marquer comme exceptionnel",
+    "unmarkExceptional": "Annuler le marquage exceptionnel",
+    "exceptionalReasons": {
+      "illness": "Maladie",
+      "stress": "Stress intense",
+      "travel": "Voyage"
+    }
+  },
+  "recoveryKit": {
+    "title": "Kit de récupération",
+    "generate": "Générer mon kit",
+    "save": "Sauvegarder le kit",
+    "warning": "Conservez ce kit en lieu sûr. Sans lui, vous ne pourrez pas restaurer vos données chiffrées."
+  },
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "done": "Terminé",
+    "loading": "Chargement…",
+    "error": "Une erreur est survenue"
+  }
+}

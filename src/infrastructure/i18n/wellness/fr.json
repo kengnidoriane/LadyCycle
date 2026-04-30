@@ -1,0 +1,159 @@
+{
+  "phases": {
+    "menstrual": [
+      {
+        "id": "menstrual-nutrition-1",
+        "category": "nutrition",
+        "title": "Alimentation anti-inflammatoire",
+        "content": "Pendant vos règles, privilégiez les aliments riches en oméga-3 (saumon, sardines, noix) et en magnésium (chocolat noir, légumineuses, épinards). Ces nutriments aident à réduire les prostaglandines responsables des crampes.",
+        "modes": null
+      },
+      {
+        "id": "menstrual-nutrition-2",
+        "category": "nutrition",
+        "title": "Hydratation et tisanes",
+        "content": "Buvez suffisamment d'eau et de tisanes chaudes (camomille, gingembre). La chaleur aide à détendre les muscles utérins et à soulager les douleurs. Évitez l'alcool et la caféine qui peuvent aggraver les crampes.",
+        "modes": null
+      },
+      {
+        "id": "menstrual-self-care-1",
+        "category": "self_care",
+        "title": "Repos et chaleur",
+        "content": "Accordez-vous du repos. Une bouillotte sur le bas-ventre ou le bas du dos peut soulager efficacement les crampes menstruelles. Des bains chauds peuvent également aider à détendre les muscles.",
+        "modes": null
+      },
+      {
+        "id": "menstrual-self-care-2",
+        "category": "self_care",
+        "title": "Gestion de la douleur",
+        "content": "Si les douleurs sont intenses, des anti-inflammatoires non stéroïdiens (ibuprofène) pris dès le début des règles peuvent être efficaces. Consultez votre médecin si les douleurs sont invalidantes.",
+        "modes": null
+      },
+      {
+        "id": "menstrual-exercise-1",
+        "category": "exercise",
+        "title": "Mouvement doux",
+        "content": "Une marche légère ou du yoga doux peut aider à soulager les crampes en améliorant la circulation sanguine. Évitez les exercices intenses si vous vous sentez fatiguée — écoutez votre corps.",
+        "modes": null
+      }
+    ],
+    "follicular": [
+      {
+        "id": "follicular-exercise-1",
+        "category": "exercise",
+        "title": "Profitez de votre énergie montante",
+        "content": "La phase folliculaire est idéale pour les activités physiques intenses. Les œstrogènes augmentent progressivement, ce qui améliore votre endurance, votre force musculaire et votre récupération. C'est le bon moment pour essayer de nouveaux sports ou augmenter l'intensité de vos entraînements.",
+        "modes": null
+      },
+      {
+        "id": "follicular-exercise-2",
+        "category": "exercise",
+        "title": "Musculation et cardio",
+        "content": "Votre corps répond mieux à l'entraînement en résistance pendant cette phase. Les séances de musculation, de HIIT ou de course à pied seront particulièrement bénéfiques. Profitez de cette fenêtre d'énergie élevée.",
+        "modes": null
+      },
+      {
+        "id": "follicular-nutrition-1",
+        "category": "nutrition",
+        "title": "Protéines et légumes crucifères",
+        "content": "Favorisez les protéines maigres (poulet, légumineuses, tofu) pour soutenir la croissance musculaire. Les légumes crucifères (brocoli, chou-fleur, chou de Bruxelles) aident à métaboliser les œstrogènes en excès.",
+        "modes": null
+      },
+      {
+        "id": "follicular-self-care-1",
+        "category": "self_care",
+        "title": "Créativité et projets",
+        "content": "L'augmentation des œstrogènes stimule la dopamine et la sérotonine, favorisant la créativité et la motivation. C'est une excellente période pour démarrer de nouveaux projets, prendre des décisions importantes ou apprendre quelque chose de nouveau.",
+        "modes": null
+      }
+    ],
+    "ovulation": [
+      {
+        "id": "ovulation-general-1",
+        "category": "self_care",
+        "title": "Pic d'énergie et de confiance",
+        "content": "L'ovulation correspond au pic des œstrogènes et de la testostérone. Vous pouvez vous sentir plus sociable, confiante et énergique. Profitez de cette période pour les interactions sociales importantes et les activités qui demandent de la présence.",
+        "modes": ["general"]
+      },
+      {
+        "id": "ovulation-ttc-1",
+        "category": "medical",
+        "title": "Fenêtre de fertilité maximale",
+        "content": "Vous êtes dans votre période de fertilité maximale. Les rapports sexuels pendant les 5 jours précédant l'ovulation et le jour de l'ovulation offrent les meilleures chances de conception. Les spermatozoïdes peuvent survivre jusqu'à 5 jours dans les voies génitales féminines.",
+        "modes": ["trying_to_conceive"]
+      },
+      {
+        "id": "ovulation-ttc-2",
+        "category": "medical",
+        "title": "Signes de l'ovulation",
+        "content": "Observez les signes naturels de l'ovulation : légère douleur pelvienne (mittelschmerz), glaire cervicale transparente et filante (comme du blanc d'œuf), légère augmentation de la température basale. Ces signes peuvent confirmer l'ovulation.",
+        "modes": ["trying_to_conceive"]
+      },
+      {
+        "id": "ovulation-nc-1",
+        "category": "medical",
+        "title": "Jours à risque élevé",
+        "content": "Vous êtes dans votre période de fertilité maximale. Si vous pratiquez la contraception naturelle, soyez particulièrement vigilante pendant ces jours. La méthode du calendrier seule n'est pas suffisamment fiable — combinez-la avec d'autres indicateurs (température, glaire cervicale).",
+        "modes": ["natural_contraception"]
+      },
+      {
+        "id": "ovulation-nc-2",
+        "category": "medical",
+        "title": "Limites de la contraception naturelle",
+        "content": "La contraception naturelle (méthode symptothermique) a un taux d'échec de 0,4 à 5% en utilisation parfaite. Elle nécessite une formation rigoureuse et un suivi quotidien. Consultez un professionnel de santé pour un accompagnement adapté.",
+        "modes": ["natural_contraception"]
+      },
+      {
+        "id": "ovulation-exercise-1",
+        "category": "exercise",
+        "title": "Performance sportive au sommet",
+        "content": "Votre tolérance à la douleur et votre coordination sont à leur maximum pendant l'ovulation. C'est le moment idéal pour les compétitions sportives ou les entraînements les plus exigeants.",
+        "modes": null
+      }
+    ],
+    "luteal": [
+      {
+        "id": "luteal-nutrition-1",
+        "category": "nutrition",
+        "title": "Magnésium contre le SPM",
+        "content": "Pendant la phase lutéale, les besoins en magnésium augmentent. Consommez des aliments riches en magnésium (amandes, graines de courge, épinards, chocolat noir) pour réduire les symptômes du syndrome prémenstruel : irritabilité, rétention d'eau, crampes.",
+        "modes": null
+      },
+      {
+        "id": "luteal-nutrition-2",
+        "category": "nutrition",
+        "title": "Stabiliser la glycémie",
+        "content": "Les envies de sucre sont fréquentes en phase lutéale à cause de la chute de la sérotonine. Privilégiez les glucides complexes (avoine, patate douce, légumineuses) qui stabilisent la glycémie et réduisent les fringales. Évitez les sucres raffinés qui aggravent les sautes d'humeur.",
+        "modes": null
+      },
+      {
+        "id": "luteal-self-care-1",
+        "category": "self_care",
+        "title": "Gestion du syndrome prémenstruel",
+        "content": "Si vous souffrez du SPM, pratiquez des techniques de relaxation : méditation, respiration profonde, yoga restauratif. Réduisez le stress autant que possible — le cortisol amplifie les symptômes du SPM. Dormez suffisamment.",
+        "modes": null
+      },
+      {
+        "id": "luteal-self-care-2",
+        "category": "self_care",
+        "title": "Ralentir et se recentrer",
+        "content": "La phase lutéale est naturellement une période de ralentissement. Réduisez vos engagements sociaux si vous en ressentez le besoin. Accordez-vous du temps pour des activités calmes et ressourçantes : lecture, bains, promenades en nature.",
+        "modes": null
+      },
+      {
+        "id": "luteal-exercise-1",
+        "category": "exercise",
+        "title": "Exercice modéré",
+        "content": "Préférez les exercices d'intensité modérée : yoga, pilates, natation, marche. L'exercice régulier réduit les symptômes du SPM en libérant des endorphines. Évitez les entraînements très intenses qui peuvent aggraver la fatigue.",
+        "modes": null
+      },
+      {
+        "id": "luteal-medical-1",
+        "category": "medical",
+        "title": "SPM sévère : quand consulter",
+        "content": "Si vos symptômes prémenstruels sont sévères et affectent significativement votre qualité de vie (TDPM — trouble dysphorique prémenstruel), consultez un médecin ou un gynécologue. Des traitements efficaces existent.",
+        "modes": null
+      }
+    ]
+  }
+}
