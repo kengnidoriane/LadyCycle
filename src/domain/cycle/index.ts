@@ -12,3 +12,4 @@ export type {
 } from './types'
 
 export { CycleManager } from './CycleManager'
+export { PredictionEngine } from './PredictionEngine'
