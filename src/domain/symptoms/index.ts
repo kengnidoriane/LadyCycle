@@ -1,3 +1,11 @@
 // domain/symptoms — SymptomTracker, entités Symptom
-// Ce module sera implémenté dans la tâche 11.
-export {}
+
+export { SymptomTracker } from './SymptomTracker'
+export type {
+  Symptom,
+  SymptomType,
+  SymptomCategory,
+  SymptomTrend,
+} from './types'
+export { SYMPTOM_TYPE_TO_CATEGORY } from './types'
+
