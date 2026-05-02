@@ -71,13 +71,23 @@ const wellnessContentArb: fc.Arbitrary<WellnessContent> = fc.record({
 const symptomArb: fc.Arbitrary<Symptom> = fc.record({
   id: fc.uuid(),
   date: fc
-    .date({ min: new Date('2024-01-01'), max: new Date('2024-12-31') })
-    .map((d) => d.toISOString().split('T')[0]),
+    .integer({ min: 0, max: 364 })
+    .map((days) => {
+      const date = new Date('2024-01-01')
+      date.setDate(date.getDate() + days)
+      return date.toISOString().split('T')[0]
+    }),
   type: fc.constantFrom('cramps', 'headache', 'fatigue', 'mood_swings'),
   category: fc.constantFrom('pain', 'mood', 'energy'),
   intensity: fc.option(fc.integer({ min: 1, max: 5 }), { nil: null }),
   notes: fc.option(fc.string({ maxLength: 100 }), { nil: null }),
-  createdAt: fc.date().map((d) => d.toISOString()),
+  createdAt: fc
+    .integer({ min: 0, max: 364 })
+    .map((days) => {
+      const date = new Date('2024-01-01')
+      date.setDate(date.getDate() + days)
+      return date.toISOString()
+    }),
 })
 
 // ─── Tests de propriété ───────────────────────────────────────────────────────
@@ -146,8 +156,8 @@ describe('WellnessAdvisor — Property-Based Tests', () => {
       fc.property(
         fc.record({
           phases: fc.record({
-            menstrual: fc.constant([]),
-            follicular: fc.constant([]),
+            menstrual: fc.constant([] as PhaseAdvice[]),
+            follicular: fc.constant([] as PhaseAdvice[]),
             ovulation: fc.tuple(
               // Conseil pour "trying_to_conceive"
               fc.record({
@@ -174,7 +184,7 @@ describe('WellnessAdvisor — Property-Based Tests', () => {
                 modes: fc.constant(null),
               }),
             ),
-            luteal: fc.constant([]),
+            luteal: fc.constant([] as PhaseAdvice[]),
           }),
         }),
         (content) => {
