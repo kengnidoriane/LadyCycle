@@ -1,3 +1,11 @@
 // domain/wellness — WellnessAdvisor, entités Advice
-// Ce module sera implémenté dans la tâche 12.
-export {}
+export { WellnessAdvisor } from './WellnessAdvisor'
+export type {
+  Advice,
+  AdviceCategory,
+  AdvicePriority,
+  CyclePhase,
+  PhaseAdvice,
+  TrackingMode,
+  WellnessContent,
+} from './types'
