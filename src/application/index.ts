@@ -4,3 +4,6 @@ export type { RecordPeriodError, INotificationManager } from './RecordPeriodUseC
 
 export { PredictNextCycleUseCase } from './PredictNextCycleUseCase'
 export type { PredictionResult, PredictNextCycleError } from './PredictNextCycleUseCase'
+
+export { MarkCycleExceptionalUseCase } from './MarkCycleExceptionalUseCase'
+export type { MarkCycleExceptionalError } from './MarkCycleExceptionalUseCase'
