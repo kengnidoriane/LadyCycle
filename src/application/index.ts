@@ -7,3 +7,6 @@ export type { PredictionResult, PredictNextCycleError } from './PredictNextCycle
 
 export { MarkCycleExceptionalUseCase } from './MarkCycleExceptionalUseCase'
 export type { MarkCycleExceptionalError } from './MarkCycleExceptionalUseCase'
+
+export { GetDailyAdviceUseCase } from './GetDailyAdviceUseCase'
+export type { GetDailyAdviceError } from './GetDailyAdviceUseCase'
