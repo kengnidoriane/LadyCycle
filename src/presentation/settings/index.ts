@@ -1,3 +1,9 @@
-// presentation/settings — SettingsScreen, sécurité, Kit de Récupération
-// Ce module sera implémenté dans la tâche 22.
-export {}
+// presentation/settings — Paramètres, sécurité et Kit de Récupération
+// Tâche 22 : Couche présentation — Paramètres et sécurité
+
+export { SettingsScreen } from './SettingsScreen'
+export { SecurityScreen } from './SecurityScreen'
+export { RecoveryKitScreen } from './RecoveryKitScreen'
+export { MedicationReminderForm } from './MedicationReminderForm'
+export { useSettings } from './useSettings'
+export type { SettingsState } from './useSettings'
