@@ -1,3 +1,8 @@
 // infrastructure/notifications — NotificationManager (notifications locales)
-// Ce module sera implémenté dans la tâche 18.
-export {}
+export { NotificationManager } from './NotificationManager'
+export type {
+  TrackingMode,
+  NotificationPreferences,
+  MedicationReminder,
+  MedicationLog,
+} from './NotificationManager'
