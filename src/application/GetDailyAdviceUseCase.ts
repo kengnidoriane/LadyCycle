@@ -86,14 +86,21 @@ export class GetDailyAdviceUseCase {
 
     const cycleHistory = historyResult.value
 
+    // Convert repo cycles to domain cycles for CycleManager
+    const domainHistory = cycleHistory.map(c => ({
+      ...c,
+      menstruationDuration: c.menstruationDuration,
+      predictions: { ovulation: null, nextPeriod: null },
+    }))
+
     // Étape 2 : Créer un CycleManager avec l'historique
-    const cycleManager = new CycleManager(cycleHistory)
+    const cycleManager = new CycleManager(domainHistory)
 
     // Étape 3 : Obtenir le cycle en cours
-    const currentCycle = cycleManager.getCurrentCycle()
+    const currentDomainCycle = cycleManager.getCurrentCycle()
 
-    // Si aucun cycle en cours, retourner des conseils généraux (phase menstruelle par défaut)
-    if (currentCycle === null) {
+    // If no current cycle, return general advice
+    if (currentDomainCycle === null) {
       const preferencesResult = this.repository.loadPreferences()
       const mode: TrackingMode = preferencesResult.ok
         ? preferencesResult.value.trackingMode
@@ -103,8 +110,11 @@ export class GetDailyAdviceUseCase {
       return ok(advices)
     }
 
+    // Find the matching repo cycle to get symptoms
+    const currentRepoCycle = cycleHistory.find(c => c.id === currentDomainCycle.id) ?? null
+
     // Étape 4 : Déterminer la phase actuelle du cycle
-    const currentPhase = this._calculateCurrentPhase(currentCycle)
+    const currentPhase = this._calculateCurrentPhase(currentDomainCycle)
 
     // Étape 5 : Charger les préférences utilisateur (mode de suivi)
     const preferencesResult = this.repository.loadPreferences()
@@ -121,7 +131,7 @@ export class GetDailyAdviceUseCase {
     const mode = preferencesResult.value.trackingMode
 
     // Étape 6 : Charger les symptômes récents (derniers 7 jours)
-    const recentSymptoms = this._loadRecentSymptoms(currentCycle)
+    const recentSymptoms = this._loadRecentSymptoms(currentRepoCycle)
 
     // Étape 7 : Appeler WellnessAdvisor.getDailyAdvice()
     const advices = this.wellnessAdvisor.getDailyAdvice(
@@ -148,7 +158,7 @@ export class GetDailyAdviceUseCase {
    * @param cycle - Cycle en cours
    * @returns Phase actuelle du cycle
    */
-  private _calculateCurrentPhase(cycle: Cycle): CyclePhase {
+  private _calculateCurrentPhase(cycle: import('../domain/cycle/types').Cycle): CyclePhase {
     const todayDate = today()
     const cycleStartDate = cycle.startDate
 
@@ -170,8 +180,8 @@ export class GetDailyAdviceUseCase {
     // Si une prédiction existe, l'utiliser ; sinon, estimer à J-14 avant la fin du cycle
     let ovulationDay: number
 
-    if (cycle.predictions?.ovulation?.predictedDate) {
-      const ovulationDate = cycle.predictions.ovulation.predictedDate
+    if (cycle.predictions?.ovulation?.value?.estimatedDate) {
+      const ovulationDate = cycle.predictions.ovulation.value.estimatedDate
       ovulationDay = diffDays(cycleStartDate, ovulationDate) + 1
     } else {
       // Estimation par défaut : ovulation à J-14 avant la fin du cycle
@@ -200,12 +210,12 @@ export class GetDailyAdviceUseCase {
   /**
    * Charge les symptômes récents (derniers 7 jours) pour le cycle en cours.
    *
-   * @param cycle - Cycle en cours
+   * @param cycle - Cycle en cours (repo format) ou null
    * @returns Tableau de symptômes récents
    */
-  private _loadRecentSymptoms(cycle: Cycle): Symptom[] {
-    // Si le cycle n'a pas de symptômes, retourner un tableau vide
-    if (!cycle.symptoms || cycle.symptoms.length === 0) {
+  private _loadRecentSymptoms(cycle: Cycle | null): Symptom[] {
+    // Si pas de cycle ou pas de symptômes, retourner un tableau vide
+    if (!cycle || !cycle.symptoms || cycle.symptoms.length === 0) {
       return []
     }
 

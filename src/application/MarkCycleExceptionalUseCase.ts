@@ -19,9 +19,10 @@
 import type { Result } from '../domain/shared/types'
 import { ok, err } from '../domain/shared/types'
 import { CycleManager } from '../domain/cycle/CycleManager'
-import type { Cycle } from '../domain/cycle/types'
-import type { ICycleRepository } from '../infrastructure/db/CycleRepository'
+import type { Cycle as DomainCycle } from '../domain/cycle/types'
+import type { Cycle as RepoCycle, ICycleRepository } from '../infrastructure/db/CycleRepository'
 import type { ValidationError, StorageError } from '../domain/shared/errors'
+import { ErrorCode, createError } from '../domain/shared/errors'
 import { PredictNextCycleUseCase } from './PredictNextCycleUseCase'
 
 // ─── Types d'erreur ───────────────────────────────────────────────────────────
@@ -55,22 +56,11 @@ export class MarkCycleExceptionalUseCase {
 
   /**
    * Marque un cycle comme exceptionnel.
-   *
-   * Étapes :
-   *   1. Charger l'historique des cycles depuis le repository
-   *   2. Créer un CycleManager avec l'historique
-   *   3. Marquer le cycle comme exceptionnel (validation)
-   *   4. Persister le cycle via repository
-   *   5. Recalculer les prédictions avec PredictNextCycleUseCase
-   *
-   * @param cycleId - Identifiant du cycle à marquer
-   * @param reason - Raison optionnelle du marquage (ex: "Maladie", "Stress intense")
-   * @returns Result<Cycle, MarkCycleExceptionalError>
    */
   async markAsExceptional(
     cycleId: string,
     reason?: string,
-  ): Promise<Result<Cycle, MarkCycleExceptionalError>> {
+  ): Promise<Result<RepoCycle, MarkCycleExceptionalError>> {
     // Étape 1 : Charger l'historique des cycles
     const historyResult = this.repository.loadAllCycles()
     if (!historyResult.ok) {
@@ -79,8 +69,15 @@ export class MarkCycleExceptionalUseCase {
 
     const cycleHistory = historyResult.value
 
+    // Convert repo cycles to domain cycles for CycleManager
+    const domainHistory: DomainCycle[] = cycleHistory.map(c => ({
+      ...c,
+      menstruationDuration: c.menstruationDuration,
+      predictions: { ovulation: null, nextPeriod: null },
+    }))
+
     // Étape 2 : Créer un CycleManager avec l'historique
-    const cycleManager = new CycleManager(cycleHistory)
+    const cycleManager = new CycleManager(domainHistory)
 
     // Étape 3 : Marquer le cycle comme exceptionnel (validation)
     const markResult = cycleManager.markCycleAsExceptional(cycleId, reason)
@@ -88,40 +85,43 @@ export class MarkCycleExceptionalUseCase {
       return err(markResult.error)
     }
 
-    const updatedCycle = markResult.value
+    const updatedDomainCycle = markResult.value
 
-    // Étape 4 : Persister le cycle
-    const saveResult = this.repository.saveCycle(updatedCycle as any)
+    // Find the original repo cycle to preserve repo-specific fields
+    const originalRepoCycle = cycleHistory.find(c => c.id === cycleId)
+    if (!originalRepoCycle) {
+      return err(createError(
+        ErrorCode.MISSING_REQUIRED_FIELD,
+        `Cycle introuvable : ${cycleId}`,
+      ) as ValidationError)
+    }
+
+    // Étape 4 : Convertir vers le format repository et persister
+    const updatedRepoCycle: RepoCycle = {
+      ...originalRepoCycle,
+      isExceptional: updatedDomainCycle.isExceptional,
+      exceptionalReason: updatedDomainCycle.exceptionalReason,
+      updatedAt: updatedDomainCycle.updatedAt,
+    }
+
+    const saveResult = this.repository.saveCycle(updatedRepoCycle)
     if (!saveResult.ok) {
       return err(saveResult.error)
     }
 
     // Étape 5 : Recalculer les prédictions
-    // Le marquage d'un cycle comme exceptionnel affecte les prédictions futures
-    // car ce cycle sera exclu des calculs
     const predictUseCase = new PredictNextCycleUseCase(this.repository)
     await predictUseCase.execute()
 
-    // Retourner le cycle mis à jour
-    return ok(updatedCycle)
+    return ok(updatedRepoCycle)
   }
 
   /**
    * Annule le marquage exceptionnel d'un cycle.
-   *
-   * Étapes :
-   *   1. Charger l'historique des cycles depuis le repository
-   *   2. Créer un CycleManager avec l'historique
-   *   3. Annuler le marquage exceptionnel (validation)
-   *   4. Persister le cycle via repository
-   *   5. Recalculer les prédictions avec PredictNextCycleUseCase
-   *
-   * @param cycleId - Identifiant du cycle à démarquer
-   * @returns Result<Cycle, MarkCycleExceptionalError>
    */
   async unmarkAsExceptional(
     cycleId: string,
-  ): Promise<Result<Cycle, MarkCycleExceptionalError>> {
+  ): Promise<Result<RepoCycle, MarkCycleExceptionalError>> {
     // Étape 1 : Charger l'historique des cycles
     const historyResult = this.repository.loadAllCycles()
     if (!historyResult.ok) {
@@ -130,8 +130,15 @@ export class MarkCycleExceptionalUseCase {
 
     const cycleHistory = historyResult.value
 
+    // Convert repo cycles to domain cycles for CycleManager
+    const domainHistory: DomainCycle[] = cycleHistory.map(c => ({
+      ...c,
+      menstruationDuration: c.menstruationDuration,
+      predictions: { ovulation: null, nextPeriod: null },
+    }))
+
     // Étape 2 : Créer un CycleManager avec l'historique
-    const cycleManager = new CycleManager(cycleHistory)
+    const cycleManager = new CycleManager(domainHistory)
 
     // Étape 3 : Annuler le marquage exceptionnel (validation)
     const unmarkResult = cycleManager.unmarkCycleAsExceptional(cycleId)
@@ -139,20 +146,34 @@ export class MarkCycleExceptionalUseCase {
       return err(unmarkResult.error)
     }
 
-    const updatedCycle = unmarkResult.value
+    const updatedDomainCycle = unmarkResult.value
 
-    // Étape 4 : Persister le cycle
-    const saveResult = this.repository.saveCycle(updatedCycle as any)
+    // Find the original repo cycle to preserve repo-specific fields
+    const originalRepoCycle = cycleHistory.find(c => c.id === cycleId)
+    if (!originalRepoCycle) {
+      return err(createError(
+        ErrorCode.MISSING_REQUIRED_FIELD,
+        `Cycle introuvable : ${cycleId}`,
+      ) as ValidationError)
+    }
+
+    // Étape 4 : Convertir vers le format repository et persister
+    const updatedRepoCycle: RepoCycle = {
+      ...originalRepoCycle,
+      isExceptional: updatedDomainCycle.isExceptional,
+      exceptionalReason: updatedDomainCycle.exceptionalReason,
+      updatedAt: updatedDomainCycle.updatedAt,
+    }
+
+    const saveResult = this.repository.saveCycle(updatedRepoCycle)
     if (!saveResult.ok) {
       return err(saveResult.error)
     }
 
     // Étape 5 : Recalculer les prédictions
-    // La réintégration d'un cycle dans les calculs affecte les prédictions futures
     const predictUseCase = new PredictNextCycleUseCase(this.repository)
     await predictUseCase.execute()
 
-    // Retourner le cycle mis à jour
-    return ok(updatedCycle)
+    return ok(updatedRepoCycle)
   }
 }

@@ -145,6 +145,7 @@ const arbitraryCycle: fc.Arbitrary<Cycle> = arbitraryDatePair.chain(dates => {
     endDate: fc.option(fc.constant(dates.endDate), { nil: null }),
     menstruationEndDate: fc.option(arbitraryCalendarDate, { nil: null }),
     duration: fc.option(fc.constant(dates.duration), { nil: null }),
+    menstruationDuration: fc.option(fc.integer({ min: 3, max: 7 }), { nil: null }),
     isExceptional: fc.boolean(),
     exceptionalReason: fc.option(
       fc.constantFrom('maladie', 'stress', 'voyage', 'autre'),

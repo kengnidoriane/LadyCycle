@@ -28,6 +28,7 @@ import type {
   OvulationWindow,
   DateRange,
   CyclePhase,
+  Cycle as DomainCycle,
 } from '../domain/cycle/types'
 import type { ICycleRepository } from '../infrastructure/db/CycleRepository'
 import type { StorageError } from '../domain/shared/errors'
@@ -114,18 +115,25 @@ export class PredictNextCycleUseCase {
 
     const cycleHistory = historyResult.value
 
+    // Convert repo cycles to domain cycles for PredictionEngine
+    const domainHistory: DomainCycle[] = cycleHistory.map(c => ({
+      ...c,
+      menstruationDuration: c.menstruationDuration,
+      predictions: { ovulation: null, nextPeriod: null },
+    }))
+
     // Étape 2 : Créer un PredictionEngine
     const predictionEngine = new PredictionEngine()
 
     // Étape 3 : Prédire l'ovulation
-    const ovulationPrediction = predictionEngine.predictOvulation(cycleHistory)
+    const ovulationPrediction = predictionEngine.predictOvulation(domainHistory)
 
     // Étape 4 : Prédire les prochaines règles
-    const nextPeriodPrediction = predictionEngine.predictNextPeriod(cycleHistory)
+    const nextPeriodPrediction = predictionEngine.predictNextPeriod(domainHistory)
 
     // Étape 5 : Déterminer la phase actuelle du cycle
     const currentPhase = this._determineCurrentPhase(
-      cycleHistory,
+      domainHistory,
       ovulationPrediction,
       nextPeriodPrediction,
     )

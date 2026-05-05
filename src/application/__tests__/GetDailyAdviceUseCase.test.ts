@@ -74,6 +74,7 @@ function createTestCycle(overrides?: Partial<Cycle>): Cycle {
     endDate: null,
     menstruationEndDate: addDays(startDate, 4), // Menstruation de 5 jours
     duration: null,
+    menstruationDuration: 5,
     isExceptional: false,
     exceptionalReason: null,
     symptoms: [],

@@ -19,8 +19,8 @@ import type { CalendarDate, Result } from '../domain/shared/types'
 import { ok, err } from '../domain/shared/types'
 import { CycleManager } from '../domain/cycle/CycleManager'
 import { PredictionEngine } from '../domain/cycle/PredictionEngine'
-import type { Cycle } from '../domain/cycle/types'
-import type { ICycleRepository } from '../infrastructure/db/CycleRepository'
+import type { Cycle as DomainCycle } from '../domain/cycle/types'
+import type { Cycle as RepoCycle, ICycleRepository } from '../infrastructure/db/CycleRepository'
 import type { ValidationError, StorageError } from '../domain/shared/errors'
 import { ErrorCode, createError } from '../domain/shared/errors'
 
@@ -86,12 +86,12 @@ export class RecordPeriodUseCase {
    *
    * @param startDate - Date de début de la menstruation (YYYY-MM-DD)
    * @param menstruationEndDate - Date de fin de la menstruation (YYYY-MM-DD)
-   * @returns Result<Cycle, RecordPeriodError>
+   * @returns Result<RepoCycle, RecordPeriodError>
    */
   async execute(
     startDate: CalendarDate,
     menstruationEndDate: CalendarDate,
-  ): Promise<Result<Cycle, RecordPeriodError>> {
+  ): Promise<Result<RepoCycle, RecordPeriodError>> {
     // Étape 1 : Charger l'historique des cycles
     const historyResult = this.repository.loadAllCycles()
     if (!historyResult.ok) {
@@ -101,7 +101,13 @@ export class RecordPeriodUseCase {
     const cycleHistory = historyResult.value
 
     // Étape 2 : Créer un CycleManager avec l'historique
-    const cycleManager = new CycleManager(cycleHistory)
+    // Convert repo cycles to domain cycles for CycleManager
+    const domainHistory: DomainCycle[] = cycleHistory.map(c => ({
+      ...c,
+      menstruationDuration: c.menstruationDuration,
+      predictions: { ovulation: null, nextPeriod: null },
+    }))
+    const cycleManager = new CycleManager(domainHistory)
 
     // Étape 3 : Enregistrer la menstruation (validation)
     const recordResult = cycleManager.recordMenstruation(
@@ -112,14 +118,23 @@ export class RecordPeriodUseCase {
       return err(recordResult.error)
     }
 
-    let cycle = recordResult.value
+    const domainCycle = recordResult.value
 
     // Étape 4 : Convertir le cycle du domaine vers le format du repository
-    // Le repository attend un cycle avec symptoms (array vide pour un nouveau cycle)
-    const cycleForRepo: any = {
-      ...cycle,
-      symptoms: [], // Nouveau cycle sans symptômes
-      menstruationDuration: cycle.menstruationDuration ?? null,
+    const now = new Date().toISOString()
+    const cycleForRepo: RepoCycle = {
+      id: domainCycle.id,
+      startDate: domainCycle.startDate,
+      endDate: domainCycle.endDate,
+      menstruationEndDate: domainCycle.menstruationEndDate,
+      duration: domainCycle.duration,
+      menstruationDuration: domainCycle.menstruationDuration,
+      isExceptional: domainCycle.isExceptional,
+      exceptionalReason: domainCycle.exceptionalReason,
+      symptoms: [],
+      predictions: { ovulation: null, nextPeriod: null },
+      createdAt: domainCycle.createdAt,
+      updatedAt: domainCycle.updatedAt,
     }
 
     // Persister le cycle
@@ -132,20 +147,22 @@ export class RecordPeriodUseCase {
     const predictionEngine = new PredictionEngine()
 
     // Mettre à jour l'historique avec le nouveau cycle pour les prédictions
-    const updatedHistory = [...cycleHistory, cycle]
+    const updatedDomainHistory: DomainCycle[] = [
+      ...domainHistory,
+      { ...domainCycle, predictions: { ovulation: null, nextPeriod: null } },
+    ]
 
     // Prédire l'ovulation
-    const ovulationPrediction = predictionEngine.predictOvulation(updatedHistory)
+    const ovulationPrediction = predictionEngine.predictOvulation(updatedDomainHistory)
 
     // Prédire les prochaines règles
-    const nextPeriodPrediction = predictionEngine.predictNextPeriod(updatedHistory)
+    const nextPeriodPrediction = predictionEngine.predictNextPeriod(updatedDomainHistory)
 
-    // Étape 6 : Mettre à jour le cycle avec les nouvelles prédictions
-    // Convertir les prédictions du PredictionEngine vers le format du repository
+    // Étape 6 : Convertir les prédictions vers le format plat du repository
     const ovulationForRepo = ovulationPrediction
       ? {
           id: this._generateId(),
-          cycleId: cycle.id,
+          cycleId: domainCycle.id,
           predictionType: 'ovulation' as const,
           predictedDate: ovulationPrediction.value.estimatedDate,
           predictedDateRangeStart: ovulationPrediction.value.fertileWindowStart,
@@ -158,7 +175,7 @@ export class RecordPeriodUseCase {
     const nextPeriodForRepo = nextPeriodPrediction
       ? {
           id: this._generateId(),
-          cycleId: cycle.id,
+          cycleId: domainCycle.id,
           predictionType: 'next_period' as const,
           predictedDate: nextPeriodPrediction.value.startDate,
           predictedDateRangeStart: nextPeriodPrediction.value.startDate,
@@ -168,9 +185,8 @@ export class RecordPeriodUseCase {
         }
       : null
 
-    cycle = {
-      ...cycle,
-      symptoms: [], // Pas de symptômes pour un nouveau cycle
+    const cycleWithPredictions: RepoCycle = {
+      ...cycleForRepo,
       predictions: {
         ovulation: ovulationForRepo,
         nextPeriod: nextPeriodForRepo,
@@ -178,13 +194,13 @@ export class RecordPeriodUseCase {
     }
 
     // Étape 7 : Persister les prédictions
-    const savePredictionsResult = this.repository.saveCycle(cycle as any)
+    const savePredictionsResult = this.repository.saveCycle(cycleWithPredictions)
     if (!savePredictionsResult.ok) {
       return err(savePredictionsResult.error)
     }
 
     // Étape 8 : Planifier les notifications (si NotificationManager disponible)
-    if (this.notificationManager && nextPeriodForRepo) {
+    if (this.notificationManager && nextPeriodPrediction) {
       // Charger les préférences utilisateur pour les notifications
       const preferencesResult = this.repository.loadPreferences()
       if (preferencesResult.ok) {
@@ -198,7 +214,7 @@ export class RecordPeriodUseCase {
     }
 
     // Retourner le cycle avec les prédictions
-    return ok(cycle)
+    return ok(cycleWithPredictions)
   }
 
   /**

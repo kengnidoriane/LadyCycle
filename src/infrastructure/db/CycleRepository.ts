@@ -84,6 +84,8 @@ export interface Cycle {
   endDate: Option<CalendarDate>
   menstruationEndDate: Option<CalendarDate>
   duration: Option<number>
+  /** Durée de la menstruation en jours. Absent si menstruationEndDate non renseignée. */
+  menstruationDuration: Option<number>
   isExceptional: boolean
   exceptionalReason: Option<string>
   symptoms: Symptom[]
@@ -312,6 +314,7 @@ export class InMemoryCycleRepository implements ICycleRepository {
       end_date: cycle.endDate,
       menstruation_end_date: cycle.menstruationEndDate,
       duration: cycle.duration,
+      menstruation_duration: cycle.menstruationDuration,
       is_exceptional: cycle.isExceptional ? 1 : 0,
       exceptional_reason: cycle.exceptionalReason,
       symptoms: cycle.symptoms.map(s => this._serializeSymptom(s)),
@@ -373,6 +376,7 @@ export class InMemoryCycleRepository implements ICycleRepository {
       endDate: (row['end_date'] as CalendarDate) ?? null,
       menstruationEndDate: (row['menstruation_end_date'] as CalendarDate) ?? null,
       duration: (row['duration'] as number) ?? null,
+      menstruationDuration: (row['menstruation_duration'] as number) ?? null,
       // is_exceptional stocké comme 0/1 en SQL, converti en boolean
       isExceptional: row['is_exceptional'] === 1 || row['is_exceptional'] === true,
       exceptionalReason: (row['exceptional_reason'] as string) ?? null,

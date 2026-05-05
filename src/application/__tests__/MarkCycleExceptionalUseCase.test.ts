@@ -13,6 +13,7 @@ import * as fc from 'fast-check'
 import { MarkCycleExceptionalUseCase } from '../MarkCycleExceptionalUseCase'
 import { InMemoryCycleRepository } from '../../infrastructure/db/CycleRepository'
 import type { Cycle } from '../../infrastructure/db/CycleRepository'
+import { ErrorCode } from '../../domain/shared/errors'
 import { addDays } from '../../domain/shared/calendarDate'
 import type { CalendarDate } from '../../domain/shared/types'
 
@@ -388,7 +389,7 @@ describe('MarkCycleExceptionalUseCase', () => {
       repository.saveCycle = () => ({
         ok: false,
         error: {
-          code: 'STORAGE_WRITE_FAILED' as const,
+          code: ErrorCode.STORAGE_WRITE_FAILED,
           message: 'Simulated storage failure',
           timestamp: new Date().toISOString(),
         },

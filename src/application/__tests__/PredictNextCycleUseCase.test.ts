@@ -27,6 +27,7 @@ function createCycle(
     endDate,
     menstruationEndDate,
     duration,
+    menstruationDuration: 5,
     isExceptional,
     exceptionalReason: isExceptional ? 'Test reason' : null,
     symptoms: [],
