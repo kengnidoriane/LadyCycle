@@ -400,7 +400,7 @@ describe('NotificationManager - Property-Based Tests', () => {
           }
         },
       ),
-      { numRuns: 50 },
+      { numRuns: 100 },
     )
   })
 
