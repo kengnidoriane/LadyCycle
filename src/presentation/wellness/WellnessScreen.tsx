@@ -170,7 +170,6 @@ export function WellnessScreen(): React.JSX.Element {
             style={styles.categoryFilters}
             accessible={true}
             accessibilityLabel="Filtrer les conseils par catégorie"
-            accessibilityRole="group"
           >
             {/* Bouton "Tous" */}
             <TouchableOpacity

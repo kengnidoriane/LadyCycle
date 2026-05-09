@@ -298,7 +298,6 @@ export function SettingsScreen({ onNavigateToSecurity }: SettingsScreenProps): R
                   style={styles.daysGrid}
                   accessible={true}
                   accessibilityLabel="Délais de notification avant les règles"
-                  accessibilityRole="group"
                 >
                   {ADVANCE_NOTICE_OPTIONS.map(days => {
                     const isSelected = notificationPreferences.periodAdvanceNoticeDays.includes(days)
@@ -331,7 +330,6 @@ export function SettingsScreen({ onNavigateToSecurity }: SettingsScreenProps): R
                   style={styles.daysGrid}
                   accessible={true}
                   accessibilityLabel="Délai de notification avant la période féconde"
-                  accessibilityRole="radiogroup"
                 >
                   {[1, 2, 3].map(days => {
                     const isSelected =

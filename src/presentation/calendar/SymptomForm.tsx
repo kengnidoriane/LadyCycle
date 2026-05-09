@@ -220,9 +220,15 @@ export function SymptomForm({
             const cycleResult = sharedRepository.loadCycle(targetCycleId)
             if (cycleResult.ok && cycleResult.value !== null) {
               const cycle = cycleResult.value
+              // Convert domain Symptom to repository Symptom (add cycleId)
+              const domainSymptom = result.value
+              const repoSymptom = {
+                ...domainSymptom,
+                cycleId: targetCycleId,
+              }
               const updatedCycle = {
                 ...cycle,
-                symptoms: [...cycle.symptoms, result.value],
+                symptoms: [...cycle.symptoms, repoSymptom],
               }
               sharedRepository.saveCycle(updatedCycle)
             }
