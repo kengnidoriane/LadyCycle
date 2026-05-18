@@ -163,6 +163,7 @@ export function CalendarScreen(): React.JSX.Element {
   const currentPhase = predictions?.currentPhase ?? null
   const phaseLabel = currentPhase ? PHASE_LABELS[currentPhase] : null
   const phaseDescription = currentPhase ? PHASE_DESCRIPTIONS[currentPhase] : null
+  const hasNoCycles = cycles.length === 0
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -171,8 +172,24 @@ export function CalendarScreen(): React.JSX.Element {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Phase actuelle ─────────────────────────────────────────────── */}
-        {phaseLabel !== null && (
+        {/* ── En-tête ────────────────────────────────────────────────────── */}
+        <Text style={styles.screenTitle} accessibilityRole="header">
+          Mon Cycle
+        </Text>
+
+        {/* ── État vide : aucun cycle enregistré ─────────────────────────── */}
+        {hasNoCycles && (
+          <View style={styles.emptyState} accessible accessibilityRole="text">
+            <Text style={styles.emptyStateEmoji} accessibilityElementsHidden>🌸</Text>
+            <Text style={styles.emptyStateTitle}>Commencez votre suivi</Text>
+            <Text style={styles.emptyStateText}>
+              Enregistrez vos dernières règles pour obtenir votre calendrier personnalisé et vos premières prédictions.
+            </Text>
+          </View>
+        )}
+
+        {/* ── Phase actuelle (uniquement si des cycles existent) ─────────── */}
+        {!hasNoCycles && phaseLabel !== null && (
           <View
             style={styles.phaseCard}
             accessible={true}
@@ -219,8 +236,8 @@ export function CalendarScreen(): React.JSX.Element {
           />
         </View>
 
-        {/* ── Prédictions ────────────────────────────────────────────────── */}
-        {predictions !== null && (
+        {/* ── Prédictions (uniquement si des cycles existent) ────────────── */}
+        {!hasNoCycles && predictions !== null && (
           <View style={styles.predictionsSection}>
             <Text style={styles.sectionTitle}>Prédictions</Text>
 
@@ -257,7 +274,9 @@ export function CalendarScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityHint="Ouvre le formulaire d'enregistrement des règles"
         >
-          <Text style={styles.recordButtonText}>+ Enregistrer mes règles</Text>
+          <Text style={styles.recordButtonText}>
+            {hasNoCycles ? '🌸 Enregistrer mes premières règles' : '+ Enregistrer mes règles'}
+          </Text>
         </TouchableOpacity>
 
         {/* Espace en bas pour le scroll */}
@@ -419,6 +438,36 @@ const styles = StyleSheet.create({
   confidenceText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#212121',
+    marginBottom: 16,
+  },
+  emptyState: {
+    backgroundColor: '#FCE4EC',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyStateEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#880E4F',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#AD1457',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   recordButton: {
     backgroundColor: '#E91E63',

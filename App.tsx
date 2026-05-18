@@ -3,7 +3,7 @@
  *
  * Responsabilités :
  * - Appeler VersionManager.migrate() au démarrage (Exigence 14.1)
- * - Afficher CalendarScreen comme écran principal
+ * - Déléguer le routage à AppNavigator (onboarding → main)
  * - Gérer les états de chargement et d'erreur de migration
  *
  * Architecture :
@@ -16,7 +16,7 @@
 import React, { useEffect, useState } from 'react'
 import { StatusBar, StyleSheet, View, Text, ActivityIndicator, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { CalendarScreen } from './src/presentation/calendar/CalendarScreen'
+import { AppNavigator } from './src/presentation/navigation/AppNavigator'
 import { InMemoryDatabase, InMemoryVersionManager } from './src/infrastructure/db/VersionManager'
 import { ALL_MIGRATIONS } from './src/infrastructure/db/schema'
 
@@ -106,8 +106,8 @@ function AppContent({ migrationState, migrationError }: AppContentProps): React.
     )
   }
 
-  // Migration réussie — afficher l'écran principal
-  return <CalendarScreen />
+  // Migration réussie — déléguer le routage à AppNavigator
+  return <AppNavigator />
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
