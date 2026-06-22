@@ -13,6 +13,7 @@ import { View, StyleSheet } from 'react-native'
 import { OnboardingScreen } from '../onboarding/OnboardingScreen'
 import { MainTabNavigator } from './MainTabNavigator'
 import { sharedRepository } from '../calendar/useCalendar'
+import { colors } from '../theme'
 
 type AppScreen = 'loading' | 'onboarding' | 'main'
 
@@ -39,6 +40,6 @@ export function AppNavigator(): React.JSX.Element {
 const styles = StyleSheet.create({
   blank: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.background,
   },
 })

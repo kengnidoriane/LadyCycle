@@ -24,6 +24,8 @@ import {
   StyleSheet,
 } from 'react-native'
 import type { CalendarDate } from '../../domain/shared/types'
+import { colors, spacing, radii } from '../theme'
+import { useI18n } from '../i18n/I18nContext'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -74,10 +76,10 @@ function isValidCalendarDate(value: string): boolean {
  * Formate une CalendarDate en date lisible.
  * Ex : "2024-01-15" → "15 jan. 2024"
  */
-function formatDisplayDate(date: CalendarDate): string {
+function formatDisplayDate(date: CalendarDate, fr: boolean): string {
   const [year, month, day] = date.split('-').map(Number)
   const d = new Date(Date.UTC(year, month - 1, day))
-  return d.toLocaleDateString('fr-FR', {
+  return d.toLocaleDateString(fr ? 'fr-FR' : 'en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -105,11 +107,13 @@ export function DatePickerField({
   maxDate,
   accessibilityLabel,
 }: DatePickerFieldProps): React.JSX.Element {
+  const { currentLanguage } = useI18n()
+  const fr = currentLanguage !== 'en'
   const [inputText, setInputText] = useState(value ?? '')
   const [isFocused, setIsFocused] = useState(false)
 
   const today = getTodayDate()
-  const displayValue = value ? formatDisplayDate(value) : ''
+  const displayValue = value ? formatDisplayDate(value, fr) : ''
 
   function handleTodayPress(): void {
     const todayDate = today
@@ -163,7 +167,7 @@ export function DatePickerField({
               style={styles.displayValue}
               onPress={() => setIsFocused(true)}
               accessible={true}
-              accessibilityLabel={`${a11yLabel} : ${displayValue}. Appuyez pour modifier.`}
+              accessibilityLabel={fr ? `${a11yLabel} : ${displayValue}. Appuyez pour modifier.` : `${a11yLabel}: ${displayValue}. Tap to edit.`}
               accessibilityRole="button"
             >
               <Text style={styles.displayValueText}>{displayValue}</Text>
@@ -175,13 +179,13 @@ export function DatePickerField({
               onChangeText={handleTextChange}
               onFocus={() => setIsFocused(true)}
               onBlur={handleBlur}
-              placeholder="AAAA-MM-JJ"
-              placeholderTextColor="#BDBDBD"
+              placeholder={fr ? 'AAAA-MM-JJ' : 'YYYY-MM-DD'}
+              placeholderTextColor={colors.textTertiary}
               keyboardType="numeric"
               maxLength={10}
               accessible={true}
-              accessibilityLabel={`${a11yLabel}, format année-mois-jour`}
-              accessibilityHint="Saisissez la date au format AAAA-MM-JJ ou appuyez sur Aujourd'hui"
+              accessibilityLabel={fr ? `${a11yLabel}, format année-mois-jour` : `${a11yLabel}, year-month-day format`}
+              accessibilityHint={fr ? "Saisissez la date au format AAAA-MM-JJ ou appuyez sur Aujourd'hui" : 'Enter the date as YYYY-MM-DD or tap Today'}
             />
           )}
         </View>
@@ -194,7 +198,7 @@ export function DatePickerField({
           ]}
           onPress={handleTodayPress}
           accessible={true}
-          accessibilityLabel={`Définir ${label.toLowerCase()} à aujourd'hui`}
+          accessibilityLabel={fr ? `Définir ${label.toLowerCase()} à aujourd'hui` : `Set ${label.toLowerCase()} to today`}
           accessibilityRole="button"
         >
           <Text
@@ -203,7 +207,7 @@ export function DatePickerField({
               value === today && styles.todayButtonTextActive,
             ]}
           >
-            Aujourd'hui
+            {fr ? "Aujourd'hui" : 'Today'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -227,33 +231,33 @@ export function DatePickerField({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#424242',
+    color: colors.textPrimary,
     marginBottom: 6,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   inputContainer: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
     minHeight: 48,
     justifyContent: 'center',
   },
   inputFocused: {
-    borderColor: '#E91E63',
+    borderColor: colors.primary,
   },
   inputError: {
-    borderColor: '#EF5350',
+    borderColor: colors.danger,
   },
   displayValue: {
     paddingHorizontal: 14,
@@ -261,37 +265,37 @@ const styles = StyleSheet.create({
   },
   displayValueText: {
     fontSize: 15,
-    color: '#212121',
+    color: colors.textPrimary,
   },
   textInput: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#212121',
+    color: colors.textPrimary,
   },
   todayButton: {
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#FCE4EC',
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
     borderWidth: 1.5,
-    borderColor: '#F48FB1',
+    borderColor: colors.primaryMuted,
   },
   todayButtonActive: {
-    backgroundColor: '#E91E63',
-    borderColor: '#E91E63',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   todayButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#E91E63',
+    color: colors.primaryDark,
   },
   todayButtonTextActive: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
   },
   errorText: {
     marginTop: 4,
     fontSize: 12,
-    color: '#EF5350',
+    color: colors.danger,
   },
 })

@@ -19,12 +19,15 @@ import {
   ScrollView,
 } from 'react-native'
 import type { Cycle } from '../../infrastructure/db/CycleRepository'
+import { colors, spacing, radii } from '../theme'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface CycleDurationChartProps {
   /** Cycles complets (avec durée connue), non exceptionnels, triés par date */
   cycles: Cycle[]
+  /** Langue d'affichage. */
+  lang?: 'fr' | 'en'
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -44,7 +47,8 @@ const CHART_PADDING = 16
  * Chaque barre représente la durée d'un cycle, colorée selon la régularité
  * par rapport à la moyenne.
  */
-export function CycleDurationChart({ cycles }: CycleDurationChartProps): React.JSX.Element | null {
+export function CycleDurationChart({ cycles, lang = 'fr' }: CycleDurationChartProps): React.JSX.Element | null {
+  const fr = lang !== 'en'
   // Filtrer les cycles complets non exceptionnels avec durée connue
   const completedCycles = cycles
     .filter(c => !c.isExceptional && c.duration !== null)
@@ -69,28 +73,28 @@ export function CycleDurationChart({ cycles }: CycleDurationChartProps): React.J
   // Couleur de la barre selon l'écart à la moyenne
   const getBarColor = (duration: number): string => {
     const diff = Math.abs(duration - avgDuration)
-    if (diff <= 2) return '#E91E63'   // Rose — proche de la moyenne
-    if (diff <= 5) return '#FFA726'   // Orange — écart modéré
-    return '#EF5350'                  // Rouge — écart important
+    if (diff <= 2) return colors.primary       // proche de la moyenne
+    if (diff <= 5) return colors.warning        // écart modéré
+    return colors.danger                        // écart important
   }
 
   // Formater le mois d'un cycle
   const formatMonth = (startDate: string): string => {
     const [year, month] = startDate.split('-').map(Number)
     const d = new Date(Date.UTC(year, month - 1, 1))
-    return d.toLocaleDateString('fr-FR', { month: 'short', timeZone: 'UTC' })
+    return d.toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { month: 'short', timeZone: 'UTC' })
   }
 
   return (
     <View
       style={styles.container}
       accessible={true}
-      accessibilityLabel={`Graphique d'évolution des durées de cycle sur ${completedCycles.length} cycles`}
+      accessibilityLabel={fr ? `Graphique d'évolution des durées de cycle sur ${completedCycles.length} cycles` : `Cycle length chart over ${completedCycles.length} cycles`}
       accessibilityRole="image"
     >
-      <Text style={styles.title}>Évolution des durées</Text>
+      <Text style={styles.title}>{fr ? 'Évolution des durées' : 'Length over time'}</Text>
       <Text style={styles.subtitle}>
-        {completedCycles.length} cycles · Moyenne : {Math.round(avgDuration)} jours
+        {completedCycles.length} {fr ? 'cycles · Moyenne :' : 'cycles · Average:'} {Math.round(avgDuration)} {fr ? 'jours' : 'days'}
       </Text>
 
       {/* Ligne de référence de la moyenne */}
@@ -151,16 +155,16 @@ export function CycleDurationChart({ cycles }: CycleDurationChartProps): React.J
       {/* Légende */}
       <View style={styles.legend} accessibilityElementsHidden={true}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#E91E63' }]} />
-          <Text style={styles.legendText}>Proche de la moyenne</Text>
+          <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+          <Text style={styles.legendText}>{fr ? 'Proche de la moyenne' : 'Close to average'}</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#FFA726' }]} />
-          <Text style={styles.legendText}>Écart modéré</Text>
+          <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
+          <Text style={styles.legendText}>{fr ? 'Écart modéré' : 'Moderate variation'}</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#EF5350' }]} />
-          <Text style={styles.legendText}>Écart important</Text>
+          <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
+          <Text style={styles.legendText}>{fr ? 'Écart important' : 'Large variation'}</Text>
         </View>
       </View>
     </View>
@@ -171,26 +175,23 @@ export function CycleDurationChart({ cycles }: CycleDurationChartProps): React.J
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#212121',
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   subtitle: {
     fontSize: 12,
-    color: '#757575',
-    marginBottom: 16,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
   },
   chartWrapper: {
     position: 'relative',
@@ -211,18 +212,18 @@ const styles = StyleSheet.create({
   },
   barValue: {
     fontSize: 10,
-    color: '#424242',
+    color: colors.textSecondary,
     fontWeight: '600',
     marginBottom: 2,
   },
   bar: {
     width: BAR_WIDTH - 4,
-    borderRadius: 4,
+    borderRadius: radii.sm,
     minHeight: 8,
   },
   barLabel: {
     fontSize: 10,
-    color: '#9E9E9E',
+    color: colors.textTertiary,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: '#E91E63',
+    backgroundColor: colors.primary,
     opacity: 0.4,
   },
   legend: {
@@ -251,6 +252,6 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 11,
-    color: '#757575',
+    color: colors.textSecondary,
   },
 })

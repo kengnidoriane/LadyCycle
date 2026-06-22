@@ -1,193 +1,116 @@
 /**
- * SymptomForm — Formulaire de saisie des symptômes.
+ * SymptomForm — saisie d'un symptôme du jour.
  *
- * Affiche :
- * - Les catégories prédéfinies (douleurs, humeur, énergie, physique, sommeil)
- * - Les types de symptômes pour la catégorie sélectionnée
- * - Le sélecteur d'intensité (1-5) UNIQUEMENT pour la catégorie `pain`
- * - Un champ de notes optionnel
+ * Catégories prédéfinies, types par catégorie, intensité 1-5 (douleurs
+ * uniquement), notes. Restylé avec le système de design.
  *
- * Règle métier clé :
- *   Le sélecteur d'intensité n'apparaît que si category === 'pain'.
- *   Cette règle reflète exactement la validation de SymptomTracker.recordSymptom().
- *
- * Accessibilité :
- *   - Chaque élément interactif a un accessibilityLabel
- *   - Le slider d'intensité annonce "Intensité de la douleur : X sur 5"
- *   - Les groupes de boutons utilisent accessibilityRole="radiogroup"
+ * Règle métier : le sélecteur d'intensité n'apparaît que si category === 'pain'.
  *
  * Exigences : 5.1, 5.2, 5.3, 5.4
  */
 
 import React, { useState } from 'react'
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  StyleSheet,
-  SafeAreaView,
-} from 'react-native'
+import { View, StyleSheet, TouchableOpacity, TextInput } from 'react-native'
 import type { SymptomCategory, SymptomType } from '../../domain/symptoms/types'
-import { SYMPTOM_TYPE_TO_CATEGORY } from '../../domain/symptoms/types'
 import { SymptomTracker } from '../../domain/symptoms/SymptomTracker'
 import type { CalendarDate } from '../../domain/shared/types'
 import { today } from '../../domain/shared/calendarDate'
 import { sharedRepository } from './useCalendar'
-
-// ─── Données de configuration des catégories ─────────────────────────────────
+import { AppText, Button, Icon } from '../components'
+import type { IconName } from '../components'
+import { colors, spacing, radii } from '../theme'
+import { useI18n } from '../i18n/I18nContext'
 
 interface CategoryConfig {
   label: string
-  emoji: string
+  icon: IconName
   color: string
-  backgroundColor: string
+  soft: string
 }
 
-const CATEGORY_CONFIG: Record<SymptomCategory, CategoryConfig> = {
-  pain: {
-    label: 'Douleurs',
-    emoji: '🔴',
-    color: '#C62828',
-    backgroundColor: '#FFEBEE',
-  },
-  mood: {
-    label: 'Humeur',
-    emoji: '💜',
-    color: '#6A1B9A',
-    backgroundColor: '#F3E5F5',
-  },
-  energy: {
-    label: 'Énergie',
-    emoji: '⚡',
-    color: '#E65100',
-    backgroundColor: '#FFF3E0',
-  },
-  physical: {
-    label: 'Physique',
-    emoji: '🌿',
-    color: '#2E7D32',
-    backgroundColor: '#E8F5E9',
-  },
-  sleep: {
-    label: 'Sommeil',
-    emoji: '🌙',
-    color: '#1565C0',
-    backgroundColor: '#E3F2FD',
-  },
+function getCategoryConfig(fr: boolean): Record<SymptomCategory, CategoryConfig> {
+  return {
+    pain: { label: fr ? 'Douleurs' : 'Pain', icon: 'droplet', color: colors.phase.menstrual.text, soft: colors.phase.menstrual.soft },
+    mood: { label: fr ? 'Humeur' : 'Mood', icon: 'heart', color: colors.phase.luteal.text, soft: colors.phase.luteal.soft },
+    energy: { label: fr ? 'Énergie' : 'Energy', icon: 'sparkles', color: colors.phase.ovulation.text, soft: colors.phase.ovulation.soft },
+    physical: { label: fr ? 'Physique' : 'Physical', icon: 'leaf', color: colors.phase.follicular.text, soft: colors.phase.follicular.soft },
+    sleep: { label: fr ? 'Sommeil' : 'Sleep', icon: 'moon', color: colors.infoText, soft: colors.infoSoft },
+  }
 }
 
-// ─── Types de symptômes par catégorie ────────────────────────────────────────
-
-const SYMPTOM_TYPES_BY_CATEGORY: Record<SymptomCategory, Array<{ type: SymptomType; label: string }>> = {
-  pain: [
-    { type: 'cramps', label: 'Crampes' },
-    { type: 'headache', label: 'Maux de tête' },
-    { type: 'back_pain', label: 'Douleurs dorsales' },
-    { type: 'breast_tenderness', label: 'Sensibilité des seins' },
-  ],
-  mood: [
-    { type: 'irritable', label: 'Irritabilité' },
-    { type: 'anxious', label: 'Anxiété' },
-    { type: 'happy', label: 'Bonne humeur' },
-    { type: 'sad', label: 'Tristesse' },
-    { type: 'mood_swings', label: 'Sautes d\'humeur' },
-  ],
-  energy: [
-    { type: 'high_energy', label: 'Énergie élevée' },
-    { type: 'low_energy', label: 'Énergie faible' },
-    { type: 'fatigue', label: 'Fatigue' },
-  ],
-  physical: [
-    { type: 'bloating', label: 'Ballonnements' },
-    { type: 'acne', label: 'Acné' },
-    { type: 'nausea', label: 'Nausées' },
-    { type: 'food_cravings', label: 'Envies alimentaires' },
-  ],
-  sleep: [
-    { type: 'insomnia', label: 'Insomnie' },
-    { type: 'good_sleep', label: 'Bon sommeil' },
-    { type: 'restless_sleep', label: 'Sommeil agité' },
-  ],
+function getTypesByCategory(fr: boolean): Record<SymptomCategory, Array<{ type: SymptomType; label: string }>> {
+  return {
+    pain: [
+      { type: 'cramps', label: fr ? 'Crampes' : 'Cramps' },
+      { type: 'headache', label: fr ? 'Maux de tête' : 'Headache' },
+      { type: 'back_pain', label: fr ? 'Douleurs dorsales' : 'Back pain' },
+      { type: 'breast_tenderness', label: fr ? 'Sensibilité des seins' : 'Breast tenderness' },
+    ],
+    mood: [
+      { type: 'irritable', label: fr ? 'Irritabilité' : 'Irritability' },
+      { type: 'anxious', label: fr ? 'Anxiété' : 'Anxiety' },
+      { type: 'happy', label: fr ? 'Bonne humeur' : 'Happy' },
+      { type: 'sad', label: fr ? 'Tristesse' : 'Sad' },
+      { type: 'mood_swings', label: fr ? "Sautes d'humeur" : 'Mood swings' },
+    ],
+    energy: [
+      { type: 'high_energy', label: fr ? 'Énergie élevée' : 'High energy' },
+      { type: 'low_energy', label: fr ? 'Énergie faible' : 'Low energy' },
+      { type: 'fatigue', label: fr ? 'Fatigue' : 'Fatigue' },
+    ],
+    physical: [
+      { type: 'bloating', label: fr ? 'Ballonnements' : 'Bloating' },
+      { type: 'acne', label: fr ? 'Acné' : 'Acne' },
+      { type: 'nausea', label: fr ? 'Nausées' : 'Nausea' },
+      { type: 'food_cravings', label: fr ? 'Envies alimentaires' : 'Food cravings' },
+    ],
+    sleep: [
+      { type: 'insomnia', label: fr ? 'Insomnie' : 'Insomnia' },
+      { type: 'good_sleep', label: fr ? 'Bon sommeil' : 'Good sleep' },
+      { type: 'restless_sleep', label: fr ? 'Sommeil agité' : 'Restless sleep' },
+    ],
+  }
 }
 
-// ─── Labels d'intensité ───────────────────────────────────────────────────────
-
-const INTENSITY_LABELS: Record<number, string> = {
-  1: 'Très légère',
-  2: 'Légère',
-  3: 'Modérée',
-  4: 'Intense',
-  5: 'Très intense',
+function getIntensityLabels(fr: boolean): Record<number, string> {
+  return fr
+    ? { 1: 'Très légère', 2: 'Légère', 3: 'Modérée', 4: 'Intense', 5: 'Très intense' }
+    : { 1: 'Very mild', 2: 'Mild', 3: 'Moderate', 4: 'Intense', 5: 'Very intense' }
 }
-
-// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface SymptomFormProps {
-  /** Date pour laquelle enregistrer le symptôme (défaut : aujourd'hui) */
   date?: CalendarDate
-  /** Identifiant du cycle associé (optionnel) */
   cycleId?: string
-  /** Callback appelé après enregistrement réussi */
   onSuccess?: () => void
-  /** Callback appelé si l'utilisatrice annule */
   onCancel?: () => void
 }
 
-// ─── Composant ────────────────────────────────────────────────────────────────
-
-/**
- * Formulaire de saisie d'un symptôme.
- *
- * Flux de saisie (≤ 3 interactions) :
- *   1. Sélectionner une catégorie
- *   2. Sélectionner un type de symptôme
- *   3. (Si pain) Sélectionner l'intensité → Enregistrer
- *
- * Exigences : 5.1, 5.2, 5.3, 5.4
- */
-export function SymptomForm({
-  date,
-  cycleId,
-  onSuccess,
-  onCancel,
-}: SymptomFormProps): React.JSX.Element {
+export function SymptomForm({ date, cycleId, onSuccess, onCancel }: SymptomFormProps): React.JSX.Element {
   const symptomDate = date ?? today()
 
-  // ── État du formulaire ────────────────────────────────────────────────────
+  const { currentLanguage } = useI18n()
+  const fr = currentLanguage !== 'en'
+  const categoryConfig = getCategoryConfig(fr)
+  const typesByCategory = getTypesByCategory(fr)
+  const intensityLabels = getIntensityLabels(fr)
 
   const [selectedCategory, setSelectedCategory] = useState<SymptomCategory | null>(null)
   const [selectedType, setSelectedType] = useState<SymptomType | null>(null)
-  // Intensité : uniquement pour la catégorie 'pain', défaut à 3
   const [intensity, setIntensity] = useState<number>(3)
   const [notes, setNotes] = useState<string>('')
   const [validationError, setValidationError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
   function handleCategorySelect(category: SymptomCategory): void {
     setSelectedCategory(category)
     setSelectedType(null)
     setValidationError(null)
-    // Réinitialiser l'intensité à 3 lors du changement de catégorie
     setIntensity(3)
   }
 
-  function handleTypeSelect(type: SymptomType): void {
-    setSelectedType(type)
-    setValidationError(null)
-  }
-
-  function handleIntensitySelect(value: number): void {
-    setIntensity(value)
-  }
-
   async function handleSubmit(): Promise<void> {
-    // Validation : catégorie et type requis
     if (selectedCategory === null || selectedType === null) {
-      setValidationError('Veuillez sélectionner une catégorie et un type de symptôme.')
+      setValidationError(fr ? 'Veuillez sélectionner une catégorie et un type de symptôme.' : 'Please select a category and a symptom type.')
       return
     }
 
@@ -196,328 +119,219 @@ export function SymptomForm({
 
     try {
       const tracker = new SymptomTracker()
-
-      // Préparer les données du symptôme
       const symptomData: { type: SymptomType; intensity?: number; notes?: string } = {
         type: selectedType,
         notes: notes.trim() !== '' ? notes.trim() : undefined,
       }
-
-      // Ajouter l'intensité uniquement pour la catégorie 'pain'
       if (selectedCategory === 'pain') {
         symptomData.intensity = intensity
       }
 
       const result = tracker.recordSymptom(symptomDate, symptomData, cycleId)
 
-      if (result.ok) {
-        // Persister le symptôme dans le repository
-        // On charge le cycle actuel et on y ajoute le symptôme
-        const cyclesResult = sharedRepository.loadAllCycles()
-        if (cyclesResult.ok) {
-          const targetCycleId = cycleId ?? findCurrentCycleId(cyclesResult.value, symptomDate)
-          if (targetCycleId !== null) {
-            const cycleResult = sharedRepository.loadCycle(targetCycleId)
-            if (cycleResult.ok && cycleResult.value !== null) {
-              const cycle = cycleResult.value
-              // Convert domain Symptom to repository Symptom (add cycleId)
-              const domainSymptom = result.value
-              const repoSymptom = {
-                ...domainSymptom,
-                cycleId: targetCycleId,
-              }
-              const updatedCycle = {
-                ...cycle,
-                symptoms: [...cycle.symptoms, repoSymptom],
-              }
-              sharedRepository.saveCycle(updatedCycle)
-            }
-          }
-        }
-
-        onSuccess?.()
-      } else {
+      if (!result.ok) {
         setValidationError(result.error.message)
+        return
       }
+
+      // Rattacher le symptôme à un cycle. Si aucun cycle n'existe pour cette
+      // date, on ne perd plus le symptôme silencieusement : on prévient
+      // l'utilisatrice qu'il faut d'abord enregistrer des règles.
+      const cyclesResult = sharedRepository.loadAllCycles()
+      const targetCycleId =
+        cyclesResult.ok ? cycleId ?? findCurrentCycleId(cyclesResult.value, symptomDate) : null
+
+      if (targetCycleId === null) {
+        setValidationError(
+          fr
+            ? "Enregistre d'abord tes règles pour pouvoir y rattacher un symptôme."
+            : 'Log a period first so the symptom can be attached to a cycle.',
+        )
+        return
+      }
+
+      const cycleResult = sharedRepository.loadCycle(targetCycleId)
+      if (cycleResult.ok && cycleResult.value !== null) {
+        const cycle = cycleResult.value
+        const repoSymptom = { ...result.value, cycleId: targetCycleId }
+        sharedRepository.saveCycle({ ...cycle, symptoms: [...cycle.symptoms, repoSymptom] })
+      }
+      onSuccess?.()
     } catch (e) {
-      setValidationError(e instanceof Error ? e.message : 'Erreur inattendue')
+      setValidationError(e instanceof Error ? e.message : fr ? 'Erreur inattendue' : 'Unexpected error')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // ── Rendu ─────────────────────────────────────────────────────────────────
-
-  const canSubmit =
-    selectedCategory !== null &&
-    selectedType !== null &&
-    !isSubmitting
+  const canSubmit = selectedCategory !== null && selectedType !== null && !isSubmitting
+  const activeConfig = selectedCategory ? categoryConfig[selectedCategory] : null
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── En-tête ────────────────────────────────────────────────────── */}
-        <View style={styles.header}>
-          <Text style={styles.title} accessibilityRole="header">
-            Enregistrer un symptôme
-          </Text>
-          <Text style={styles.dateLabel} accessibilityElementsHidden={true}>
-            {formatDate(symptomDate)}
-          </Text>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.grabber} />
 
-        {/* ── Sélection de catégorie ──────────────────────────────────────── */}
-        {/* Exigence 5.2 : catégories prédéfinies */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Catégorie</Text>
-          <View
-            style={styles.categoryGrid}
-            accessible={true}
-            accessibilityLabel="Sélectionnez une catégorie de symptôme"
-            accessibilityRole="radiogroup"
-          >
-            {(Object.keys(CATEGORY_CONFIG) as SymptomCategory[]).map(category => {
-              const config = CATEGORY_CONFIG[category]
-              const isSelected = selectedCategory === category
-              return (
-                <TouchableOpacity
-                  key={category}
-                  style={[
-                    styles.categoryButton,
-                    isSelected && {
-                      backgroundColor: config.backgroundColor,
-                      borderColor: config.color,
-                    },
-                  ]}
-                  onPress={() => handleCategorySelect(category)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: isSelected }}
-                  accessibilityLabel={`${config.label}${isSelected ? ', sélectionné' : ''}`}
+      <View style={styles.header}>
+        <View>
+          <AppText variant="h3">{fr ? 'Noter un symptôme' : 'Log a symptom'}</AppText>
+          <AppText variant="caption" tone="tertiary">
+            {formatDate(symptomDate, fr)}
+          </AppText>
+        </View>
+        {onCancel && (
+          <TouchableOpacity onPress={onCancel} style={styles.closeButton} accessibilityRole="button" accessibilityLabel={fr ? 'Annuler' : 'Cancel'}>
+            <Icon name="close" size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.body}>
+        {/* Catégorie */}
+        <AppText variant="label" tone="secondary" style={styles.sectionLabel}>
+          {fr ? 'Catégorie' : 'Category'}
+        </AppText>
+        <View style={styles.categoryGrid} accessibilityRole="radiogroup">
+          {(Object.keys(categoryConfig) as SymptomCategory[]).map((category) => {
+            const config = categoryConfig[category]
+            const isSelected = selectedCategory === category
+            return (
+              <TouchableOpacity
+                key={category}
+                activeOpacity={0.7}
+                style={[
+                  styles.categoryButton,
+                  isSelected && { backgroundColor: config.soft, borderColor: config.color },
+                ]}
+                onPress={() => handleCategorySelect(category)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isSelected }}
+                accessibilityLabel={config.label}
+              >
+                <Icon name={config.icon} size={18} color={isSelected ? config.color : colors.textSecondary} />
+                <AppText
+                  variant="caption"
+                  style={isSelected ? { color: config.color, fontWeight: '700' } : { color: colors.textSecondary }}
                 >
-                  <Text
-                    style={styles.categoryEmoji}
-                    accessibilityElementsHidden={true}
-                  >
-                    {config.emoji}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.categoryLabel,
-                      isSelected && { color: config.color, fontWeight: '700' },
-                    ]}
-                  >
-                    {config.label}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
+                  {config.label}
+                </AppText>
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
-        {/* ── Sélection du type de symptôme ──────────────────────────────── */}
-        {/* Exigence 5.1 : permettre d'enregistrer un ou plusieurs symptômes */}
-        {selectedCategory !== null && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Type de symptôme</Text>
-            <View
-              style={styles.typeGrid}
-              accessible={true}
-              accessibilityLabel={`Types de symptômes pour la catégorie ${CATEGORY_CONFIG[selectedCategory].label}`}
-              accessibilityRole="radiogroup"
-            >
-              {SYMPTOM_TYPES_BY_CATEGORY[selectedCategory].map(({ type, label }) => {
+        {/* Type */}
+        {selectedCategory !== null && activeConfig && (
+          <>
+            <AppText variant="label" tone="secondary" style={styles.sectionLabel}>
+              {fr ? 'Type de symptôme' : 'Symptom type'}
+            </AppText>
+            <View style={styles.typeGrid} accessibilityRole="radiogroup">
+              {typesByCategory[selectedCategory].map(({ type, label }) => {
                 const isSelected = selectedType === type
-                const config = CATEGORY_CONFIG[selectedCategory]
                 return (
                   <TouchableOpacity
                     key={type}
+                    activeOpacity={0.7}
                     style={[
                       styles.typeButton,
-                      isSelected && {
-                        backgroundColor: config.backgroundColor,
-                        borderColor: config.color,
-                      },
+                      isSelected && { backgroundColor: activeConfig.soft, borderColor: activeConfig.color },
                     ]}
-                    onPress={() => handleTypeSelect(type)}
+                    onPress={() => {
+                      setSelectedType(type)
+                      setValidationError(null)
+                    }}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: isSelected }}
-                    accessibilityLabel={`${label}${isSelected ? ', sélectionné' : ''}`}
+                    accessibilityLabel={label}
                   >
-                    <Text
-                      style={[
-                        styles.typeLabel,
-                        isSelected && { color: config.color, fontWeight: '700' },
-                      ]}
+                    <AppText
+                      variant="caption"
+                      style={isSelected ? { color: activeConfig.color, fontWeight: '700' } : { color: colors.textSecondary }}
                     >
                       {label}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 )
               })}
             </View>
-          </View>
+          </>
         )}
 
-        {/* ── Sélecteur d'intensité (pain uniquement) ─────────────────────── */}
-        {/* Exigence 5.3 : intensité 1-5 uniquement pour les douleurs */}
+        {/* Intensité (douleurs) */}
         {selectedCategory === 'pain' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              Intensité de la douleur
-            </Text>
-            <Text
-              style={styles.intensityCurrentLabel}
-              accessibilityLabel={`Intensité actuelle : ${INTENSITY_LABELS[intensity]}, ${intensity} sur 5`}
-            >
-              {intensity} / 5 — {INTENSITY_LABELS[intensity]}
-            </Text>
-            <View
-              style={styles.intensityRow}
-              accessible={true}
-              accessibilityLabel="Sélecteur d'intensité de la douleur de 1 à 5"
-              accessibilityRole="radiogroup"
-            >
-              {[1, 2, 3, 4, 5].map(value => {
+          <>
+            <AppText variant="label" tone="secondary" style={styles.sectionLabel}>
+              {fr ? 'Intensité de la douleur' : 'Pain intensity'}
+            </AppText>
+            <AppText variant="caption" center style={[styles.intensityLabel, { color: colors.phase.menstrual.text }]}>
+              {intensity} / 5 — {intensityLabels[intensity]}
+            </AppText>
+            <View style={styles.intensityRow} accessibilityRole="radiogroup">
+              {[1, 2, 3, 4, 5].map((value) => {
                 const isSelected = intensity === value
                 return (
                   <TouchableOpacity
                     key={value}
-                    style={[
-                      styles.intensityButton,
-                      isSelected && styles.intensityButtonSelected,
-                    ]}
-                    onPress={() => handleIntensitySelect(value)}
+                    activeOpacity={0.7}
+                    style={[styles.intensityButton, isSelected && styles.intensityButtonSelected]}
+                    onPress={() => setIntensity(value)}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: isSelected }}
-                    accessibilityLabel={`Intensité ${value} sur 5 : ${INTENSITY_LABELS[value]}${isSelected ? ', sélectionné' : ''}`}
+                    accessibilityLabel={fr ? `Intensité ${value} sur 5 : ${intensityLabels[value]}` : `Intensity ${value} of 5: ${intensityLabels[value]}`}
                   >
-                    <Text
-                      style={[
-                        styles.intensityButtonText,
-                        isSelected && styles.intensityButtonTextSelected,
-                      ]}
+                    <AppText
+                      variant="h3"
+                      style={isSelected ? { color: colors.phase.menstrual.text } : { color: colors.textTertiary }}
                     >
                       {value}
-                    </Text>
+                    </AppText>
                   </TouchableOpacity>
                 )
               })}
             </View>
-            {/* Légende des extrêmes */}
-            <View style={styles.intensityLegend} accessibilityElementsHidden={true}>
-              <Text style={styles.intensityLegendText}>Très légère</Text>
-              <Text style={styles.intensityLegendText}>Très intense</Text>
-            </View>
-          </View>
+          </>
         )}
 
-        {/* ── Notes optionnelles ──────────────────────────────────────────── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Notes (optionnel)</Text>
-          <TextInput
-            style={styles.notesInput}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Ajoutez des détails sur ce symptôme…"
-            placeholderTextColor="#BDBDBD"
-            multiline
-            numberOfLines={3}
-            maxLength={500}
-            accessibilityLabel="Notes sur le symptôme"
-            accessibilityHint="Champ optionnel pour ajouter des détails"
-          />
-        </View>
+        {/* Notes */}
+        <AppText variant="label" tone="secondary" style={styles.sectionLabel}>
+          {fr ? 'Notes (optionnel)' : 'Notes (optional)'}
+        </AppText>
+        <TextInput
+          style={styles.notesInput}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder={fr ? 'Ajoute des détails sur ce symptôme…' : 'Add details about this symptom…'}
+          placeholderTextColor={colors.textTertiary}
+          multiline
+          numberOfLines={3}
+          maxLength={500}
+          accessibilityLabel={fr ? 'Notes sur le symptôme' : 'Notes about the symptom'}
+        />
 
-        {/* ── Message d'erreur de validation ─────────────────────────────── */}
         {validationError !== null && (
-          <View
-            style={styles.errorContainer}
-            accessible={true}
-            accessibilityRole="alert"
-            accessibilityLabel={validationError}
-          >
-            <Text style={styles.errorText}>{validationError}</Text>
+          <View style={styles.errorContainer} accessibilityRole="alert">
+            <AppText variant="caption" style={{ color: colors.confidence.low.text }}>
+              {validationError}
+            </AppText>
           </View>
         )}
 
-        {/* ── Boutons d'action ────────────────────────────────────────────── */}
-        <View style={styles.actions}>
-          {/* Bouton Annuler */}
-          {onCancel !== undefined && (
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={onCancel}
-              accessibilityLabel="Annuler la saisie du symptôme"
-              accessibilityRole="button"
-            >
-              <Text style={styles.cancelButtonText}>Annuler</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Bouton Enregistrer */}
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              !canSubmit && styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            accessibilityLabel={
-              canSubmit
-                ? 'Enregistrer le symptôme'
-                : 'Enregistrer le symptôme (sélectionnez une catégorie et un type)'
-            }
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canSubmit }}
-          >
-            <Text
-              style={[
-                styles.submitButtonText,
-                !canSubmit && styles.submitButtonTextDisabled,
-              ]}
-            >
-              {isSubmitting ? 'Enregistrement…' : 'Enregistrer'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </SafeAreaView>
+        <Button label={fr ? 'Enregistrer' : 'Save'} icon="check" onPress={handleSubmit} loading={isSubmitting} disabled={!canSubmit} style={styles.submit} />
+      </View>
+    </View>
   )
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Formate une CalendarDate en date lisible.
- * Ex : "2024-01-29" → "29 jan. 2024"
- */
-function formatDate(date: CalendarDate): string {
+function formatDate(date: CalendarDate, fr: boolean): string {
   const [year, month, day] = date.split('-').map(Number)
   const d = new Date(Date.UTC(year, month - 1, day))
-  return d.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
+  return d.toLocaleDateString(fr ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 
-/**
- * Trouve l'identifiant du cycle actif pour une date donnée.
- * Retourne null si aucun cycle ne correspond.
- */
 function findCurrentCycleId(
   cycles: Array<{ id: string; startDate: CalendarDate; endDate: CalendarDate | null }>,
   date: CalendarDate,
 ): string | null {
-  // Chercher le cycle dont la date est dans la plage [startDate, endDate]
   for (const cycle of cycles) {
     if (date >= cycle.startDate) {
       if (cycle.endDate === null || date <= cycle.endDate) {
@@ -528,206 +342,114 @@ function findCurrentCycleId(
   return null
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
+  container: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.xxl,
+    borderTopRightRadius: radii.xxl,
+    maxHeight: '92%',
+    paddingTop: spacing.sm,
   },
-  scrollView: {
-    flex: 1,
+  grabber: {
+    width: 40,
+    height: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: spacing.sm,
   },
-  scrollContent: {
-    padding: 20,
-  },
-  // ── En-tête ─────────────────────────────────────────────────────────────
   header: {
-    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 4,
+  closeButton: {
+    padding: spacing.sm,
   },
-  dateLabel: {
-    fontSize: 13,
-    color: '#9E9E9E',
-  },
-  // ── Sections ────────────────────────────────────────────────────────────
-  section: {
-    marginBottom: 20,
+  body: {
+    padding: spacing.xl,
   },
   sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#424242',
-    marginBottom: 10,
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
   },
-  // ── Grille de catégories ─────────────────────────────────────────────────
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: spacing.sm,
   },
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
-    minWidth: '45%',
-    flex: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
-  categoryEmoji: {
-    fontSize: 16,
-  },
-  categoryLabel: {
-    fontSize: 13,
-    color: '#424242',
-    fontWeight: '500',
-  },
-  // ── Grille de types ──────────────────────────────────────────────────────
   typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   typeButton: {
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.md,
     paddingVertical: 9,
-    borderRadius: 20,
+    borderRadius: radii.pill,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
-  typeLabel: {
-    fontSize: 13,
-    color: '#424242',
-    fontWeight: '500',
-  },
-  // ── Sélecteur d'intensité ────────────────────────────────────────────────
-  intensityCurrentLabel: {
-    fontSize: 14,
-    color: '#C62828',
+  intensityLabel: {
     fontWeight: '600',
-    marginBottom: 12,
-    textAlign: 'center',
+    marginBottom: spacing.md,
   },
   intensityRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.sm,
   },
   intensityButton: {
     flex: 1,
     aspectRatio: 1,
-    borderRadius: 10,
+    borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
+    borderColor: colors.border,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
   },
   intensityButtonSelected: {
-    backgroundColor: '#FFEBEE',
-    borderColor: '#C62828',
+    backgroundColor: colors.phase.menstrual.soft,
+    borderColor: colors.phase.menstrual.main,
   },
-  intensityButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#757575',
-  },
-  intensityButtonTextSelected: {
-    color: '#C62828',
-    fontWeight: '700',
-  },
-  intensityLegend: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  intensityLegendText: {
-    fontSize: 11,
-    color: '#BDBDBD',
-  },
-  // ── Notes ────────────────────────────────────────────────────────────────
   notesInput: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 10,
-    padding: 12,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    padding: spacing.md,
     fontSize: 14,
-    color: '#212121',
-    backgroundColor: '#FAFAFA',
+    color: colors.textPrimary,
+    backgroundColor: colors.background,
     minHeight: 80,
     textAlignVertical: 'top',
   },
-  // ── Erreur ───────────────────────────────────────────────────────────────
   errorContainer: {
-    backgroundColor: '#FFEBEE',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radii.sm,
+    padding: spacing.md,
+    marginTop: spacing.md,
     borderLeftWidth: 3,
-    borderLeftColor: '#EF5350',
+    borderLeftColor: colors.danger,
   },
-  errorText: {
-    fontSize: 13,
-    color: '#C62828',
-    lineHeight: 18,
-  },
-  // ── Actions ──────────────────────────────────────────────────────────────
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 15,
-    color: '#757575',
-    fontWeight: '600',
-  },
-  submitButton: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: '#E91E63',
-    alignItems: 'center',
-    shadowColor: '#E91E63',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#F5F5F5',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  submitButtonText: {
-    fontSize: 15,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  submitButtonTextDisabled: {
-    color: '#BDBDBD',
-  },
-  bottomSpacer: {
-    height: 20,
+  submit: {
+    marginTop: spacing.lg,
   },
 })

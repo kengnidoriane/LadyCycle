@@ -1,56 +1,34 @@
 /**
- * SecurityScreen — Écran de configuration de la sécurité et de la confidentialité.
+ * SecurityScreen — sécurité et confidentialité.
  *
- * Sections :
- * 1. Authentification (PIN, biométrie)
- * 2. Verrouillage automatique
- * 3. Sauvegarde cloud avec Kit de Récupération
- *    - Bloquée tant que recoveryKitGenerated === false (Exigence 10.6)
- *    - Flux : générer le Kit → afficher les 12 mots → confirmer → débloquer
+ * Authentification (PIN/biométrie), verrouillage auto, sauvegarde cloud E2EE
+ * (bloquée tant que le Kit de Récupération n'est pas généré — Exigence 10.6).
+ * Restylé avec le système de design.
  *
  * Exigences : 10.2, 10.3, 10.4, 10.5, 10.6, 10.7
  */
 
 import React, { useState } from 'react'
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
-  ActivityIndicator,
-  StyleSheet,
-  SafeAreaView,
-  Alert,
-} from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Switch, ActivityIndicator, Alert } from 'react-native'
 import { useSettings } from './useSettings'
 import { RecoveryKitScreen } from './RecoveryKitScreen'
-import type { SecuritySettings } from '../../infrastructure/db/CycleRepository'
-
-// ─── Constantes ───────────────────────────────────────────────────────────────
+import { Screen, ScreenHeader, AppText, Card, Button, Icon } from '../components'
+import { colors, spacing, radii } from '../theme'
+import { useI18n } from '../i18n/I18nContext'
 
 const AUTO_LOCK_OPTIONS = [
-  { value: 1, label: '1 minute' },
-  { value: 5, label: '5 minutes' },
-  { value: 15, label: '15 minutes' },
-  { value: 30, label: '30 minutes' },
+  { value: 1, label: '1 min' },
+  { value: 5, label: '5 min' },
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min' },
 ]
 
-// ─── Composant ────────────────────────────────────────────────────────────────
+const SWITCH_TRACK = { false: colors.border, true: colors.primaryMuted }
 
 interface SecurityScreenProps {
-  /** Callback pour revenir aux paramètres généraux */
   onBack?: () => void
 }
 
-/**
- * Écran de sécurité et confidentialité.
- *
- * Structure :
- * 1. Authentification (PIN / biométrie)
- * 2. Verrouillage automatique
- * 3. Sauvegarde cloud (bloquée sans Kit de Récupération)
- */
 export function SecurityScreen({ onBack }: SecurityScreenProps): React.JSX.Element {
   const {
     preferences,
@@ -61,44 +39,30 @@ export function SecurityScreen({ onBack }: SecurityScreenProps): React.JSX.Eleme
     confirmRecoveryKitSaved,
     refresh,
   } = useSettings()
+  const { currentLanguage } = useI18n()
+  const fr = currentLanguage !== 'en'
 
-  // Affichage du flux Kit de Récupération
   const [showRecoveryKitFlow, setShowRecoveryKitFlow] = useState(false)
-
-  // ── États de chargement / erreur ──────────────────────────────────────────
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator
-          size="large"
-          color="#E91E63"
-          accessibilityLabel="Chargement des paramètres de sécurité"
-        />
-        <Text style={styles.loadingText}>Chargement…</Text>
-      </SafeAreaView>
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     )
   }
 
   if (error !== null || preferences === null) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={styles.errorText} accessibilityRole="alert">
-          {error ?? 'Impossible de charger les paramètres de sécurité'}
-        </Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={refresh}
-          accessibilityLabel="Réessayer le chargement"
-          accessibilityRole="button"
-        >
-          <Text style={styles.retryButtonText}>Réessayer</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <Screen scroll={false} contentStyle={styles.centered}>
+        <AppText variant="body" tone="secondary" center>
+          {error ?? (fr ? 'Impossible de charger les paramètres de sécurité' : 'Could not load security settings')}
+        </AppText>
+        <View style={{ height: spacing.lg }} />
+        <Button label={fr ? 'Réessayer' : 'Retry'} onPress={refresh} fullWidth={false} />
+      </Screen>
     )
   }
-
-  // ── Flux Kit de Récupération ──────────────────────────────────────────────
 
   if (showRecoveryKitFlow) {
     return (
@@ -115,27 +79,22 @@ export function SecurityScreen({ onBack }: SecurityScreenProps): React.JSX.Eleme
 
   const { securitySettings } = preferences
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
   async function handleAuthToggle(enabled: boolean): Promise<void> {
     if (enabled) {
-      // En production : lancer le flux de configuration PIN/biométrie
-      // Pour l'instant, activer directement avec le type par défaut
       await updateSecuritySettings({ authenticationEnabled: true })
     } else {
       Alert.alert(
-        'Désactiver l\'authentification',
-        'Êtes-vous sûre de vouloir désactiver la protection par code PIN ou biométrie ?',
+        fr ? "Désactiver l'authentification" : 'Disable authentication',
+        fr
+          ? 'Êtes-vous sûre de vouloir désactiver la protection par code PIN ou biométrie ?'
+          : 'Are you sure you want to disable PIN or biometric protection?',
         [
-          { text: 'Annuler', style: 'cancel' },
+          { text: fr ? 'Annuler' : 'Cancel', style: 'cancel' },
           {
-            text: 'Désactiver',
+            text: fr ? 'Désactiver' : 'Disable',
             style: 'destructive',
             onPress: async () => {
-              await updateSecuritySettings({
-                authenticationEnabled: false,
-                autoLockEnabled: false,
-              })
+              await updateSecuritySettings({ authenticationEnabled: false, autoLockEnabled: false })
             },
           },
         ],
@@ -143,39 +102,23 @@ export function SecurityScreen({ onBack }: SecurityScreenProps): React.JSX.Eleme
     }
   }
 
-  async function handleAuthTypeChange(type: SecuritySettings['authenticationType']): Promise<void> {
-    await updateSecuritySettings({ authenticationType: type })
-  }
-
-  async function handleAutoLockToggle(enabled: boolean): Promise<void> {
-    await updateSecuritySettings({ autoLockEnabled: enabled })
-  }
-
-  async function handleAutoLockTimeoutChange(minutes: number): Promise<void> {
-    await updateSecuritySettings({ autoLockTimeoutMinutes: minutes })
-  }
-
-  /**
-   * Gère l'activation de la sauvegarde cloud.
-   * Exigence 10.6 : bloquer la sync tant que recoveryKitGenerated === false.
-   */
   async function handleCloudBackupToggle(enabled: boolean): Promise<void> {
     if (enabled) {
       if (!securitySettings.recoveryKitGenerated) {
-        // Lancer le flux de génération du Kit de Récupération
         setShowRecoveryKitFlow(true)
       } else {
-        // Kit déjà généré — activer directement
         await updateSecuritySettings({ cloudBackupEnabled: true })
       }
     } else {
       Alert.alert(
-        'Désactiver la sauvegarde cloud',
-        'Vos données ne seront plus sauvegardées dans le cloud. Vos données locales restent intactes.',
+        fr ? 'Désactiver la sauvegarde cloud' : 'Disable cloud backup',
+        fr
+          ? 'Vos données ne seront plus sauvegardées dans le cloud. Vos données locales restent intactes.'
+          : 'Your data will no longer be backed up to the cloud. Your local data stays intact.',
         [
-          { text: 'Annuler', style: 'cancel' },
+          { text: fr ? 'Annuler' : 'Cancel', style: 'cancel' },
           {
-            text: 'Désactiver',
+            text: fr ? 'Désactiver' : 'Disable',
             style: 'destructive',
             onPress: async () => {
               await updateSecuritySettings({ cloudBackupEnabled: false })
@@ -186,588 +129,338 @@ export function SecurityScreen({ onBack }: SecurityScreenProps): React.JSX.Eleme
     }
   }
 
-  // ── Rendu ─────────────────────────────────────────────────────────────────
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* En-tête avec bouton retour */}
-        <View style={styles.header}>
-          {onBack !== undefined && (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={onBack}
-              accessibilityLabel="Retour aux paramètres"
-              accessibilityRole="button"
-            >
-              <Text style={styles.backButtonText}>‹ Retour</Text>
-            </TouchableOpacity>
-          )}
-          <Text style={styles.screenTitle} accessibilityRole="header">
-            Sécurité
-          </Text>
-        </View>
+    <Screen>
+      {/* En-tête avec retour unifié */}
+      <ScreenHeader
+        title={fr ? 'Sécurité' : 'Security'}
+        onBack={onBack ?? (() => {})}
+        backLabel={fr ? 'Retour aux réglages' : 'Back to settings'}
+      />
 
-        {/* ── Section : Authentification ──────────────────────────────────── */}
-        {/* Exigences 10.2, 10.3 */}
-        <SectionCard title="🔐 Authentification">
-          <Text style={styles.sectionDescription}>
-            Protégez l'accès à vos données avec un code PIN ou votre biométrie.
-          </Text>
+      {/* Authentification */}
+      <Card style={styles.section}>
+        <SectionHeader icon="lock" title={fr ? 'Authentification' : 'Authentication'} />
+        <AppText variant="caption" tone="secondary" style={styles.desc}>
+          {fr
+            ? "Protège l'accès à tes données avec un code PIN ou ta biométrie."
+            : 'Protect access to your data with a PIN or biometrics.'}
+        </AppText>
+        <Row label={fr ? "Activer l'authentification" : 'Enable authentication'}>
+          <Switch
+            value={securitySettings.authenticationEnabled}
+            onValueChange={handleAuthToggle}
+            trackColor={SWITCH_TRACK}
+            thumbColor={securitySettings.authenticationEnabled ? colors.primary : colors.textTertiary}
+          />
+        </Row>
 
-          <SettingsRow
-            label="Activer l'authentification"
-            accessibilityLabel={`Authentification ${securitySettings.authenticationEnabled ? 'activée' : 'désactivée'}`}
-          >
-            <Switch
-              value={securitySettings.authenticationEnabled}
-              onValueChange={handleAuthToggle}
-              trackColor={{ false: '#E0E0E0', true: '#F48FB1' }}
-              thumbColor={securitySettings.authenticationEnabled ? '#E91E63' : '#BDBDBD'}
-              accessibilityLabel="Activer ou désactiver l'authentification"
-              accessibilityRole="switch"
-              accessibilityState={{ checked: securitySettings.authenticationEnabled }}
-            />
-          </SettingsRow>
-
-          {securitySettings.authenticationEnabled && (
-            <View style={styles.subSection}>
-              <Text style={styles.subSectionTitle}>Type d'authentification</Text>
-              <View
-                style={styles.authTypeRow}
-                accessible={true}
-                accessibilityLabel="Type d'authentification"
-                accessibilityRole="radiogroup"
-              >
-                <AuthTypeButton
-                  value="pin"
-                  label="🔢 Code PIN"
-                  description="Code à 4-6 chiffres"
-                  selected={securitySettings.authenticationType === 'pin'}
-                  onPress={() => handleAuthTypeChange('pin')}
-                />
-                <AuthTypeButton
-                  value="biometric"
-                  label="👆 Biométrie"
-                  description="Face ID / Touch ID"
-                  selected={securitySettings.authenticationType === 'biometric'}
-                  onPress={() => handleAuthTypeChange('biometric')}
-                />
-              </View>
-
-              {securitySettings.authenticationType === 'biometric' && (
-                <View style={styles.biometricNote}>
-                  <Text style={styles.biometricNoteText}>
-                    ℹ️ En cas d'échec biométrique, le code PIN sera proposé comme
-                    alternative.
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-        </SectionCard>
-
-        {/* ── Section : Verrouillage automatique ─────────────────────────── */}
-        {/* Exigence 10.4 */}
         {securitySettings.authenticationEnabled && (
-          <SectionCard title="⏱️ Verrouillage automatique">
-            <SettingsRow
-              label="Verrouiller automatiquement"
-              accessibilityLabel={`Verrouillage automatique ${securitySettings.autoLockEnabled ? 'activé' : 'désactivé'}`}
-            >
-              <Switch
-                value={securitySettings.autoLockEnabled}
-                onValueChange={handleAutoLockToggle}
-                trackColor={{ false: '#E0E0E0', true: '#F48FB1' }}
-                thumbColor={securitySettings.autoLockEnabled ? '#E91E63' : '#BDBDBD'}
-                accessibilityLabel="Activer ou désactiver le verrouillage automatique"
-                accessibilityRole="switch"
-                accessibilityState={{ checked: securitySettings.autoLockEnabled }}
+          <View style={styles.subSection}>
+            <AppText variant="label" tone="secondary" style={styles.subTitle}>
+              {fr ? "Type d'authentification" : 'Authentication type'}
+            </AppText>
+            <View style={styles.authTypeRow}>
+              <AuthTypeButton
+                icon="pill"
+                label={fr ? 'Code PIN' : 'PIN code'}
+                description={fr ? '4-6 chiffres' : '4-6 digits'}
+                selected={securitySettings.authenticationType === 'pin'}
+                onPress={() => updateSecuritySettings({ authenticationType: 'pin' })}
               />
-            </SettingsRow>
-
-            {securitySettings.autoLockEnabled && (
-              <View style={styles.subSection}>
-                <Text style={styles.subSectionTitle}>Délai de verrouillage</Text>
-                <View
-                  style={styles.lockTimeoutGrid}
-                  accessible={true}
-                  accessibilityLabel="Délai avant verrouillage automatique"
-                  accessibilityRole="radiogroup"
-                >
-                  {AUTO_LOCK_OPTIONS.map(opt => (
-                    <TouchableOpacity
-                      key={opt.value}
-                      style={[
-                        styles.lockTimeoutOption,
-                        securitySettings.autoLockTimeoutMinutes === opt.value &&
-                          styles.lockTimeoutOptionSelected,
-                      ]}
-                      onPress={() => handleAutoLockTimeoutChange(opt.value)}
-                      accessibilityRole="radio"
-                      accessibilityState={{
-                        checked: securitySettings.autoLockTimeoutMinutes === opt.value,
-                      }}
-                      accessibilityLabel={`${opt.label}${securitySettings.autoLockTimeoutMinutes === opt.value ? ', sélectionné' : ''}`}
-                    >
-                      <Text
-                        style={[
-                          styles.lockTimeoutText,
-                          securitySettings.autoLockTimeoutMinutes === opt.value &&
-                            styles.lockTimeoutTextSelected,
-                        ]}
-                      >
-                        {opt.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-          </SectionCard>
-        )}
-
-        {/* ── Section : Sauvegarde cloud ──────────────────────────────────── */}
-        {/* Exigences 10.5, 10.6, 10.7 */}
-        <SectionCard title="☁️ Sauvegarde cloud">
-          <Text style={styles.sectionDescription}>
-            Sauvegardez vos données chiffrées dans le cloud. Seul votre Kit de
-            Récupération peut les déchiffrer — même nous n'y avons pas accès.
-          </Text>
-
-          {/* Statut du Kit de Récupération */}
-          <View
-            style={[
-              styles.kitStatusCard,
-              securitySettings.recoveryKitGenerated
-                ? styles.kitStatusCardOk
-                : styles.kitStatusCardWarning,
-            ]}
-            accessible={true}
-            accessibilityLabel={
-              securitySettings.recoveryKitGenerated
-                ? 'Kit de Récupération configuré'
-                : 'Kit de Récupération non configuré — requis pour la sauvegarde cloud'
-            }
-            accessibilityRole="text"
-          >
-            <Text style={styles.kitStatusIcon} accessibilityElementsHidden={true}>
-              {securitySettings.recoveryKitGenerated ? '✅' : '⚠️'}
-            </Text>
-            <View style={styles.kitStatusContent}>
-              <Text style={styles.kitStatusTitle}>
-                {securitySettings.recoveryKitGenerated
-                  ? 'Kit de Récupération configuré'
-                  : 'Kit de Récupération requis'}
-              </Text>
-              <Text style={styles.kitStatusDescription}>
-                {securitySettings.recoveryKitGenerated
-                  ? 'Votre kit est prêt. Conservez vos 12 mots en lieu sûr.'
-                  : 'Vous devez créer votre Kit de Récupération avant d\'activer la sauvegarde cloud.'}
-              </Text>
+              <AuthTypeButton
+                icon="check"
+                label={fr ? 'Biométrie' : 'Biometrics'}
+                description="Face / Touch ID"
+                selected={securitySettings.authenticationType === 'biometric'}
+                onPress={() => updateSecuritySettings({ authenticationType: 'biometric' })}
+              />
             </View>
           </View>
+        )}
+      </Card>
 
-          {/* Bouton pour (re)générer le kit */}
-          {!securitySettings.recoveryKitGenerated && (
-            <TouchableOpacity
-              style={styles.generateKitButton}
-              onPress={() => setShowRecoveryKitFlow(true)}
-              accessibilityLabel="Créer mon Kit de Récupération"
-              accessibilityRole="button"
-              accessibilityHint="Lance le flux de génération du Kit de Récupération"
-            >
-              <Text style={styles.generateKitButtonText}>
-                🔑 Créer mon Kit de Récupération
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Toggle sauvegarde cloud */}
-          <SettingsRow
-            label="Activer la sauvegarde cloud"
-            accessibilityLabel={
-              securitySettings.cloudBackupEnabled
-                ? 'Sauvegarde cloud activée'
-                : securitySettings.recoveryKitGenerated
-                ? 'Sauvegarde cloud désactivée'
-                : 'Sauvegarde cloud bloquée — Kit de Récupération requis'
-            }
-          >
+      {/* Verrouillage auto */}
+      {securitySettings.authenticationEnabled && (
+        <Card style={styles.section}>
+          <SectionHeader icon="clock" title={fr ? 'Verrouillage automatique' : 'Auto-lock'} />
+          <Row label={fr ? 'Verrouiller automatiquement' : 'Lock automatically'}>
             <Switch
-              value={securitySettings.cloudBackupEnabled}
-              onValueChange={handleCloudBackupToggle}
-              trackColor={{ false: '#E0E0E0', true: '#F48FB1' }}
-              thumbColor={securitySettings.cloudBackupEnabled ? '#E91E63' : '#BDBDBD'}
-              accessibilityLabel="Activer ou désactiver la sauvegarde cloud"
-              accessibilityRole="switch"
-              accessibilityState={{
-                checked: securitySettings.cloudBackupEnabled,
-                disabled: !securitySettings.recoveryKitGenerated && !securitySettings.cloudBackupEnabled,
-              }}
+              value={securitySettings.autoLockEnabled}
+              onValueChange={(enabled) => updateSecuritySettings({ autoLockEnabled: enabled })}
+              trackColor={SWITCH_TRACK}
+              thumbColor={securitySettings.autoLockEnabled ? colors.primary : colors.textTertiary}
             />
-          </SettingsRow>
-
-          {!securitySettings.recoveryKitGenerated && (
-            <Text style={styles.cloudBlockedNote}>
-              🔒 La sauvegarde cloud sera disponible après la création de votre
-              Kit de Récupération.
-            </Text>
-          )}
-
-          {securitySettings.cloudBackupEnabled && (
-            <View style={styles.e2eeNote}>
-              <Text style={styles.e2eeNoteText}>
-                🛡️ Chiffrement de bout en bout actif. Vos données sont chiffrées
-                avant d'être envoyées dans le cloud.
-              </Text>
+          </Row>
+          {securitySettings.autoLockEnabled && (
+            <View style={styles.subSection}>
+              <AppText variant="label" tone="secondary" style={styles.subTitle}>
+                {fr ? 'Délai de verrouillage' : 'Lock delay'}
+              </AppText>
+              <View style={styles.chipsRow}>
+                {AUTO_LOCK_OPTIONS.map((opt) => {
+                  const selected = securitySettings.autoLockTimeoutMinutes === opt.value
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      activeOpacity={0.7}
+                      style={[styles.chip, selected && styles.chipSelected]}
+                      onPress={() => updateSecuritySettings({ autoLockTimeoutMinutes: opt.value })}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selected }}
+                      accessibilityLabel={opt.label}
+                    >
+                      <AppText
+                        variant="caption"
+                        style={selected ? { color: colors.primaryDark, fontWeight: '700' } : { color: colors.textSecondary }}
+                      >
+                        {opt.label}
+                      </AppText>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
             </View>
           )}
-        </SectionCard>
+        </Card>
+      )}
 
-        {/* ── Section : Informations sur le chiffrement ───────────────────── */}
-        <SectionCard title="ℹ️ À propos du chiffrement">
-          <Text style={styles.infoText}>
-            Toutes vos données (cycles, symptômes, prédictions) sont chiffrées
-            avec AES-256 directement sur votre appareil. La clé de chiffrement
-            est stockée dans le Keystore sécurisé de votre téléphone et ne quitte
-            jamais votre appareil.
-          </Text>
-        </SectionCard>
+      {/* Sauvegarde cloud */}
+      <Card style={styles.section}>
+        <SectionHeader icon="shield" title={fr ? 'Sauvegarde cloud' : 'Cloud backup'} />
+        <AppText variant="caption" tone="secondary" style={styles.desc}>
+          {fr
+            ? "Sauvegarde tes données chiffrées. Seul ton Kit de Récupération peut les déchiffrer — même nous n'y avons pas accès."
+            : 'Back up your encrypted data. Only your Recovery Kit can decrypt it — not even we can access it.'}
+        </AppText>
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </SafeAreaView>
+        {/* Statut du kit */}
+        <View
+          style={[
+            styles.kitStatus,
+            { backgroundColor: securitySettings.recoveryKitGenerated ? colors.successSoft : colors.phase.ovulation.soft },
+          ]}
+        >
+          <Icon
+            name={securitySettings.recoveryKitGenerated ? 'check' : 'info'}
+            size={20}
+            color={securitySettings.recoveryKitGenerated ? colors.phase.follicular.text : colors.phase.ovulation.text}
+          />
+          <View style={styles.kitStatusText}>
+            <AppText variant="bodyStrong">
+              {securitySettings.recoveryKitGenerated
+                ? fr ? 'Kit de Récupération configuré' : 'Recovery Kit configured'
+                : fr ? 'Kit de Récupération requis' : 'Recovery Kit required'}
+            </AppText>
+            <AppText variant="caption" tone="secondary">
+              {securitySettings.recoveryKitGenerated
+                ? fr ? 'Conserve tes 12 mots en lieu sûr.' : 'Keep your 12 words in a safe place.'
+                : fr ? "À créer avant d'activer la sauvegarde cloud." : 'Create it before enabling cloud backup.'}
+            </AppText>
+          </View>
+        </View>
+
+        {!securitySettings.recoveryKitGenerated && (
+          <Button
+            label={fr ? 'Créer mon Kit de Récupération' : 'Create my Recovery Kit'}
+            icon="lock"
+            onPress={() => setShowRecoveryKitFlow(true)}
+            style={styles.kitButton}
+          />
+        )}
+
+        <Row label={fr ? 'Activer la sauvegarde cloud' : 'Enable cloud backup'}>
+          <Switch
+            value={securitySettings.cloudBackupEnabled}
+            onValueChange={handleCloudBackupToggle}
+            trackColor={SWITCH_TRACK}
+            thumbColor={securitySettings.cloudBackupEnabled ? colors.primary : colors.textTertiary}
+          />
+        </Row>
+
+        {securitySettings.cloudBackupEnabled && (
+          <View style={styles.e2eeNote}>
+            <Icon name="shield" size={16} color={colors.phase.follicular.text} />
+            <AppText variant="caption" style={{ color: colors.phase.follicular.text, flex: 1 }}>
+              {fr
+                ? "Chiffrement de bout en bout actif. Tes données sont chiffrées avant l'envoi."
+                : 'End-to-end encryption active. Your data is encrypted before upload.'}
+            </AppText>
+          </View>
+        )}
+      </Card>
+
+      {/* À propos */}
+      <Card style={styles.section}>
+        <SectionHeader icon="info" title={fr ? 'À propos du chiffrement' : 'About encryption'} />
+        <AppText variant="caption" tone="secondary" style={{ lineHeight: 19 }}>
+          {fr
+            ? "Toutes tes données (cycles, symptômes, prédictions) sont chiffrées avec AES-256 directement sur ton appareil. La clé est stockée dans le Keystore sécurisé du téléphone et ne quitte jamais l'appareil."
+            : 'All your data (cycles, symptoms, predictions) is encrypted with AES-256 directly on your device. The key is stored in the phone’s secure Keystore and never leaves the device.'}
+        </AppText>
+      </Card>
+    </Screen>
   )
 }
 
-// ─── Composants auxiliaires ───────────────────────────────────────────────────
-
-interface SectionCardProps {
-  title: string
-  children: React.ReactNode
-}
-
-function SectionCard({ title, children }: SectionCardProps): React.JSX.Element {
+function SectionHeader({ icon, title }: { icon: 'lock' | 'clock' | 'shield' | 'info'; title: string }): React.JSX.Element {
   return (
-    <View style={cardStyles.card}>
-      <Text style={cardStyles.title} accessibilityRole="header">
+    <View style={styles.sectionHeader}>
+      <Icon name={icon} size={18} color={colors.primaryDark} />
+      <AppText variant="h3" accessibilityRole="header">
         {title}
-      </Text>
-      {children}
+      </AppText>
     </View>
   )
 }
 
-const cardStyles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 10,
-  },
-})
-
-interface SettingsRowProps {
-  label: string
-  accessibilityLabel?: string
-  children: React.ReactNode
-}
-
-function SettingsRow({ label, accessibilityLabel, children }: SettingsRowProps): React.JSX.Element {
+function Row({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
   return (
-    <View
-      style={rowStyles.row}
-      accessible={true}
-      accessibilityLabel={accessibilityLabel ?? label}
-    >
-      <Text style={rowStyles.label}>{label}</Text>
+    <View style={styles.row} accessible accessibilityLabel={label}>
+      <AppText variant="body" style={styles.rowLabel}>
+        {label}
+      </AppText>
       {children}
     </View>
   )
-}
-
-const rowStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 14,
-    color: '#424242',
-    flex: 1,
-    marginRight: 12,
-  },
-})
-
-interface AuthTypeButtonProps {
-  value: string
-  label: string
-  description: string
-  selected: boolean
-  onPress: () => void
 }
 
 function AuthTypeButton({
+  icon,
   label,
   description,
   selected,
   onPress,
-}: AuthTypeButtonProps): React.JSX.Element {
+}: {
+  icon: 'pill' | 'check'
+  label: string
+  description: string
+  selected: boolean
+  onPress: () => void
+}): React.JSX.Element {
   return (
     <TouchableOpacity
-      style={[authStyles.button, selected && authStyles.buttonSelected]}
+      activeOpacity={0.7}
+      style={[styles.authButton, selected && styles.authButtonSelected]}
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${label}. ${description}`}
     >
-      <Text
-        style={[authStyles.label, selected && authStyles.labelSelected]}
-      >
+      <Icon name={icon} size={20} color={selected ? colors.primaryDark : colors.textSecondary} />
+      <AppText variant="caption" style={selected ? { color: colors.primaryDark, fontWeight: '700' } : undefined}>
         {label}
-      </Text>
-      <Text
-        style={authStyles.description}
-        accessibilityElementsHidden={true}
-      >
+      </AppText>
+      <AppText variant="tiny" tone="tertiary">
         {description}
-      </Text>
+      </AppText>
     </TouchableOpacity>
   )
 }
 
-const authStyles = StyleSheet.create({
-  button: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
-    alignItems: 'center',
-  },
-  buttonSelected: {
-    borderColor: '#E91E63',
-    backgroundColor: '#FCE4EC',
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#424242',
-    marginBottom: 2,
-  },
-  labelSelected: {
-    color: '#880E4F',
-  },
-  description: {
-    fontSize: 11,
-    color: '#9E9E9E',
-  },
-})
-
-// ─── Styles principaux ────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FAFAFA',
-    padding: 24,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    color: '#757575',
-  },
-  errorText: {
-    fontSize: 15,
-    color: '#EF5350',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#E91E63',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
   },
   header: {
-    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   backButton: {
-    marginBottom: 8,
+    padding: spacing.xs,
   },
-  backButtonText: {
-    fontSize: 15,
-    color: '#E91E63',
-    fontWeight: '500',
+  section: {
+    marginBottom: spacing.lg,
   },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#212121',
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
-  sectionDescription: {
-    fontSize: 13,
-    color: '#757575',
+  desc: {
     lineHeight: 18,
-    marginBottom: 14,
+    marginBottom: spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.xs,
+  },
+  rowLabel: {
+    flex: 1,
+    marginRight: spacing.md,
   },
   subSection: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
+    borderTopColor: colors.border,
   },
-  subSectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#616161',
-    marginBottom: 10,
+  subTitle: {
+    marginBottom: spacing.sm,
   },
   authTypeRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.md,
   },
-  biometricNote: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: '#E3F2FD',
-    borderRadius: 8,
+  authButton: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
-  biometricNoteText: {
-    fontSize: 12,
-    color: '#1565C0',
-    lineHeight: 17,
+  authButtonSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
-  lockTimeoutGrid: {
+  chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
-  lockTimeoutOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
-  lockTimeoutOptionSelected: {
-    borderColor: '#E91E63',
-    backgroundColor: '#FCE4EC',
+  chipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
-  lockTimeoutText: {
-    fontSize: 13,
-    color: '#616161',
-  },
-  lockTimeoutTextSelected: {
-    color: '#880E4F',
-    fontWeight: '600',
-  },
-  // ── Kit de Récupération ──────────────────────────────────────────────────
-  kitStatusCard: {
+  kitStatus: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 14,
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    marginBottom: spacing.md,
   },
-  kitStatusCardOk: {
-    backgroundColor: '#E8F5E9',
-  },
-  kitStatusCardWarning: {
-    backgroundColor: '#FFF8E1',
-  },
-  kitStatusIcon: {
-    fontSize: 20,
-    marginTop: 1,
-  },
-  kitStatusContent: {
+  kitStatusText: {
     flex: 1,
   },
-  kitStatusTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 3,
-  },
-  kitStatusDescription: {
-    fontSize: 12,
-    color: '#616161',
-    lineHeight: 17,
-  },
-  generateKitButton: {
-    backgroundColor: '#E91E63',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  generateKitButtonText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  cloudBlockedNote: {
-    fontSize: 12,
-    color: '#9E9E9E',
-    fontStyle: 'italic',
-    marginTop: 4,
+  kitButton: {
+    marginBottom: spacing.md,
   },
   e2eeNote: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 8,
-  },
-  e2eeNoteText: {
-    fontSize: 12,
-    color: '#2E7D32',
-    lineHeight: 17,
-  },
-  infoText: {
-    fontSize: 13,
-    color: '#757575',
-    lineHeight: 19,
-  },
-  bottomSpacer: {
-    height: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.successSoft,
+    borderRadius: radii.sm,
   },
 })

@@ -1,145 +1,112 @@
 /**
- * MainTabNavigator — Barre de navigation par onglets, sans dépendance externe.
+ * MainTabNavigator — barre d'onglets de LadyCycle.
  *
- * Implémentation pure React Native : TouchableOpacity + état local.
- * Évite les problèmes d'assets de @react-navigation sur certaines versions de Metro.
+ * Navigation épurée à 4 onglets, icônes vectorielles (pas d'émojis) :
+ *   - Accueil      (écran phare : anneau de cycle)
+ *   - Calendrier
+ *   - Statistiques
+ *   - Réglages
  *
- * 4 onglets :
- * - 📅 Calendrier  (écran principal)
- * - 📊 Statistiques
- * - 🌿 Bien-être
- * - ⚙️ Paramètres
+ * Le bien-être n'est plus un onglet : il est intégré à l'accueil sous forme de
+ * carte contextuelle (minimalisme — une intention claire par zone).
+ *
+ * Implémentation pure React Native (état local), sans dépendance @react-navigation.
  */
 
 import React, { useState } from 'react'
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-} from 'react-native'
+import { View, TouchableOpacity, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { HomeScreen } from '../home/HomeScreen'
 import { CalendarScreen } from '../calendar/CalendarScreen'
 import { StatisticsScreen } from '../statistics/StatisticsScreen'
-import { WellnessScreen } from '../wellness/WellnessScreen'
 import { SettingsScreen } from '../settings/SettingsScreen'
+import { AppText, Icon } from '../components'
+import type { IconName } from '../components'
+import { useI18n } from '../i18n/I18nContext'
+import { colors, spacing, radii, shadows } from '../theme'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type TabName = 'calendar' | 'statistics' | 'wellness' | 'settings'
+type TabName = 'home' | 'calendar' | 'statistics' | 'settings'
 
 interface Tab {
   name: TabName
-  label: string
-  emoji: string
-  accessibilityLabel: string
+  icon: IconName
+  labelKey: string
 }
 
-// ─── Configuration des onglets ────────────────────────────────────────────────
-
 const TABS: Tab[] = [
-  { name: 'calendar',   label: 'Calendrier',  emoji: '📅', accessibilityLabel: 'Calendrier du cycle' },
-  { name: 'statistics', label: 'Statistiques', emoji: '📊', accessibilityLabel: 'Statistiques et historique' },
-  { name: 'wellness',   label: 'Bien-être',   emoji: '🌿', accessibilityLabel: 'Conseils de bien-être' },
-  { name: 'settings',   label: 'Paramètres',  emoji: '⚙️', accessibilityLabel: "Paramètres de l'application" },
+  { name: 'home', icon: 'home', labelKey: 'nav.home' },
+  { name: 'calendar', icon: 'calendar', labelKey: 'nav.calendar' },
+  { name: 'statistics', icon: 'chart', labelKey: 'nav.stats' },
+  { name: 'settings', icon: 'settings', labelKey: 'nav.settings' },
 ]
 
-// ─── Composant ────────────────────────────────────────────────────────────────
-
 export function MainTabNavigator(): React.JSX.Element {
-  const [activeTab, setActiveTab] = useState<TabName>('calendar')
+  const [activeTab, setActiveTab] = useState<TabName>('home')
+  const insets = useSafeAreaInsets()
+  const { t } = useI18n()
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* ── Contenu de l'onglet actif ──────────────────────────────────── */}
+    <View style={styles.container}>
       <View style={styles.content}>
-        {activeTab === 'calendar'   && <CalendarScreen />}
+        {activeTab === 'home' && <HomeScreen onOpenSettings={() => setActiveTab('settings')} />}
+        {activeTab === 'calendar' && <CalendarScreen />}
         {activeTab === 'statistics' && <StatisticsScreen />}
-        {activeTab === 'wellness'   && <WellnessScreen />}
-        {activeTab === 'settings'   && <SettingsScreen />}
+        {activeTab === 'settings' && <SettingsScreen />}
       </View>
 
-      {/* ── Barre de navigation ────────────────────────────────────────── */}
-      <View style={styles.tabBar} accessibilityRole="tablist">
+      <View
+        style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}
+        accessibilityRole="tablist"
+      >
         {TABS.map((tab) => {
           const isActive = activeTab === tab.name
+          const color = isActive ? colors.primary : colors.textTertiary
           return (
             <TouchableOpacity
               key={tab.name}
               style={styles.tabItem}
+              activeOpacity={0.7}
               onPress={() => setActiveTab(tab.name)}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
-              accessibilityLabel={tab.accessibilityLabel}
+              accessibilityLabel={t(tab.labelKey)}
             >
-              <Text style={[styles.tabEmoji, isActive && styles.tabEmojiActive]}>
-                {tab.emoji}
-              </Text>
-              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                {tab.label}
-              </Text>
-              {isActive && <View style={styles.activeIndicator} />}
+              <Icon name={tab.icon} size={23} color={color} strokeWidth={isActive ? 2.4 : 2} />
+              <AppText
+                variant="tiny"
+                style={{ color, marginTop: 3 }}
+                accessibilityElementsHidden
+              >
+                {t(tab.labelKey)}
+              </AppText>
             </TouchableOpacity>
           )
         })}
       </View>
-    </SafeAreaView>
+    </View>
   )
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingBottom: 4,
-    paddingTop: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 8,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    ...shadows.md,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    position: 'relative',
-  },
-  tabEmoji: {
-    fontSize: 22,
-    opacity: 0.45,
-    marginBottom: 2,
-  },
-  tabEmojiActive: {
-    opacity: 1,
-  },
-  tabLabel: {
-    fontSize: 10,
-    color: '#9E9E9E',
-    fontWeight: '500',
-  },
-  tabLabelActive: {
-    color: '#E91E63',
-    fontWeight: '700',
-  },
-  activeIndicator: {
-    position: 'absolute',
-    top: 0,
-    width: 24,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: '#E91E63',
+    paddingVertical: spacing.xs,
   },
 })

@@ -3,14 +3,28 @@
     "name": "LadyCycle",
     "tagline": "Suivez votre cycle en toute confiance"
   },
+  "nav": {
+    "home": "Accueil",
+    "calendar": "Calendrier",
+    "stats": "Stats",
+    "settings": "Réglages"
+  },
   "calendar": {
     "title": "Calendrier",
     "today": "Aujourd'hui",
     "phases": {
-      "menstrual": "Phase menstruelle",
+      "menstrual": "Règles",
       "follicular": "Phase folliculaire",
       "ovulation": "Ovulation",
       "luteal": "Phase lutéale"
+    }
+  },
+  "phase": {
+    "desc": {
+      "menstrual": "C'est le début de ton cycle. Prends soin de toi et écoute ton corps.",
+      "follicular": "Ton énergie remonte. C'est une bonne période pour entreprendre.",
+      "ovulation": "Période féconde. Ta fertilité est à son maximum.",
+      "luteal": "Avant les règles. Privilégie le repos et la douceur."
     }
   },
   "period": {
@@ -106,6 +120,7 @@
     "next": "Suivant",
     "done": "Terminé",
     "loading": "Chargement…",
-    "error": "Une erreur est survenue"
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer"
   }
 }

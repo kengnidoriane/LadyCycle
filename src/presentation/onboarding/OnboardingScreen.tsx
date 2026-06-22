@@ -1,29 +1,23 @@
 /**
- * OnboardingScreen — Écran de bienvenue au premier lancement.
+ * OnboardingScreen — accueil au premier lancement (3 étapes).
  *
- * Affiché uniquement quand aucun cycle n'a encore été enregistré.
- * Guide l'utilisatrice en 3 étapes avant d'accéder à l'app principale.
+ * 1. Bienvenue + valeurs (privé, prédictions qui s'améliorent)
+ * 2. Choix du mode de suivi
+ * 3. Prêt à commencer
  *
- * Étape 1 : Bienvenue + présentation de l'app
- * Étape 2 : Choix du mode de suivi
- * Étape 3 : Enregistrement du premier cycle (optionnel, peut être ignoré)
+ * Restylé avec le système de design : icônes vectorielles, palette douce,
+ * ton intime. Met en avant la signature dès la première étape : « plus tu
+ * enregistres, plus c'est précis ».
  */
 
 import React, { useState } from 'react'
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  Dimensions,
-} from 'react-native'
+import { View, StyleSheet, TouchableOpacity } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { AppText, Button, Card, Icon } from '../components'
+import type { IconName } from '../components'
+import { colors, spacing, radii } from '../theme'
+import { useI18n } from '../i18n/I18nContext'
 import type { TrackingMode } from '../../infrastructure/db/CycleRepository'
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface OnboardingScreenProps {
   onComplete: () => void
@@ -31,474 +25,395 @@ interface OnboardingScreenProps {
 
 type OnboardingStep = 1 | 2 | 3
 
-// ─── Données des étapes ───────────────────────────────────────────────────────
+function getFeatures(fr: boolean): Array<{ icon: IconName; label: string; desc: string }> {
+  return [
+    {
+      icon: 'calendar',
+      label: fr ? 'Suivi du cycle' : 'Cycle tracking',
+      desc: fr ? 'Enregistre tes règles et consulte ton historique' : 'Log your period and view your history',
+    },
+    {
+      icon: 'sparkles',
+      label: fr ? 'Prédictions qui s’améliorent' : 'Predictions that improve',
+      desc: fr ? 'Plus tu enregistres, plus c’est précis' : 'The more you log, the more accurate it gets',
+    },
+    {
+      icon: 'bell',
+      label: fr ? 'Rappels' : 'Reminders',
+      desc: fr ? 'Ne manque plus tes règles ni tes médicaments' : 'Never miss your period or your medication',
+    },
+    {
+      icon: 'leaf',
+      label: fr ? 'Bien-être' : 'Wellness',
+      desc: fr ? 'Conseils adaptés à ta phase de cycle' : 'Tips tailored to your cycle phase',
+    },
+  ]
+}
 
-const FEATURES = [
-  { emoji: '📅', label: 'Suivi du cycle', desc: 'Enregistrez vos règles et consultez votre historique' },
-  { emoji: '🔮', label: 'Prédictions', desc: 'Anticipez vos prochaines règles et votre ovulation' },
-  { emoji: '💊', label: 'Rappels', desc: 'Ne manquez plus vos médicaments ou rendez-vous' },
-  { emoji: '🌿', label: 'Bien-être', desc: 'Conseils personnalisés selon votre phase de cycle' },
-]
-
-const TRACKING_MODES: Array<{
+function getModes(fr: boolean): Array<{
   value: TrackingMode
-  emoji: string
+  icon: IconName
   label: string
   description: string
-}> = [
-  {
-    value: 'general',
-    emoji: '📊',
-    label: 'Suivi général',
-    description: 'Je veux simplement suivre mon cycle et mieux me connaître.',
-  },
-  {
-    value: 'trying_to_conceive',
-    emoji: '👶',
-    label: 'Essai bébé',
-    description: 'Je souhaite concevoir et veux connaître ma période féconde.',
-  },
-  {
-    value: 'natural_contraception',
-    emoji: '🛡️',
-    label: 'Contraception naturelle',
-    description: 'J\'utilise la méthode naturelle et veux identifier les jours à risque.',
-  },
-]
-
-// ─── Composant principal ──────────────────────────────────────────────────────
+}> {
+  return [
+    {
+      value: 'general',
+      icon: 'chart',
+      label: fr ? 'Suivi général' : 'General tracking',
+      description: fr
+        ? 'Je veux simplement suivre mon cycle et mieux me connaître.'
+        : 'I just want to track my cycle and understand it better.',
+    },
+    {
+      value: 'trying_to_conceive',
+      icon: 'heart',
+      label: fr ? 'Essai bébé' : 'Trying to conceive',
+      description: fr
+        ? 'Je souhaite concevoir et connaître ma période féconde.'
+        : 'I want to conceive and know my fertile window.',
+    },
+    {
+      value: 'natural_contraception',
+      icon: 'shield',
+      label: fr ? 'Contraception naturelle' : 'Natural contraception',
+      description: fr ? 'Je veux identifier les jours à risque.' : 'I want to identify high-risk days.',
+    },
+  ]
+}
 
 export function OnboardingScreen({ onComplete }: OnboardingScreenProps): React.JSX.Element {
   const [step, setStep] = useState<OnboardingStep>(1)
   const [selectedMode, setSelectedMode] = useState<TrackingMode>('general')
+  const insets = useSafeAreaInsets()
+  const { currentLanguage } = useI18n()
+  const fr = currentLanguage !== 'en'
 
   function goNext(): void {
-    if (step < 3) {
-      setStep((s) => (s + 1) as OnboardingStep)
-    } else {
-      onComplete()
-    }
+    if (step < 3) setStep((s) => (s + 1) as OnboardingStep)
+    else onComplete()
   }
 
   function goBack(): void {
-    if (step > 1) {
-      setStep((s) => (s - 1) as OnboardingStep)
-    }
+    if (step > 1) setStep((s) => (s - 1) as OnboardingStep)
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      {/* Indicateur de progression */}
-      <View style={styles.progressBar}>
+    <View style={[styles.root, { paddingTop: insets.top + spacing.lg }]}>
+      {/* Progression */}
+      <View style={styles.progress}>
         {([1, 2, 3] as OnboardingStep[]).map((s) => (
           <View
             key={s}
             style={[styles.progressDot, step >= s && styles.progressDotActive]}
-            accessibilityLabel={`Étape ${s}${step === s ? ', étape actuelle' : step > s ? ', complétée' : ''}`}
+            accessibilityLabel={`Étape ${s}${step === s ? ', étape actuelle' : ''}`}
           />
         ))}
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {step === 1 && <StepWelcome />}
-        {step === 2 && (
-          <StepTrackingMode
-            selected={selectedMode}
-            onSelect={setSelectedMode}
-          />
-        )}
-        {step === 3 && <StepReady />}
-      </ScrollView>
+      <View style={styles.content}>
+        {step === 1 && <StepWelcome fr={fr} />}
+        {step === 2 && <StepMode fr={fr} selected={selectedMode} onSelect={setSelectedMode} />}
+        {step === 3 && <StepReady fr={fr} />}
+      </View>
 
-      {/* Boutons de navigation */}
-      <View style={styles.footer}>
+      {/* Navigation */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
         {step > 1 ? (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={goBack}
-            accessibilityLabel="Étape précédente"
-            accessibilityRole="button"
-          >
-            <Text style={styles.backButtonText}>← Retour</Text>
-          </TouchableOpacity>
+          <Button label={fr ? 'Retour' : 'Back'} icon="arrowLeft" variant="ghost" fullWidth={false} onPress={goBack} />
         ) : (
-          <View style={styles.backButtonPlaceholder} />
+          <View style={{ width: 80 }} />
         )}
-
-        <TouchableOpacity
-          style={styles.nextButton}
+        <Button
+          label={step === 3 ? (fr ? 'Commencer' : 'Get started') : fr ? 'Suivant' : 'Next'}
+          icon={step === 3 ? 'check' : 'arrowRight'}
+          fullWidth={false}
           onPress={goNext}
-          accessibilityLabel={step === 3 ? "Commencer à utiliser l'application" : 'Étape suivante'}
-          accessibilityRole="button"
-        >
-          <Text style={styles.nextButtonText}>
-            {step === 3 ? 'Commencer 🌸' : 'Suivant →'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  )
-}
-
-// ─── Étape 1 : Bienvenue ──────────────────────────────────────────────────────
-
-function StepWelcome(): React.JSX.Element {
-  return (
-    <View style={stepStyles.container}>
-      <Text style={stepStyles.bigEmoji} accessibilityElementsHidden>🌸</Text>
-      <Text style={stepStyles.title} accessibilityRole="header">
-        Bienvenue sur LadyCycle
-      </Text>
-      <Text style={stepStyles.subtitle}>
-        Votre compagnon de suivi du cycle menstruel, 100 % privé et chiffré.
-      </Text>
-
-      <View style={stepStyles.featureList}>
-        {FEATURES.map((f) => (
-          <View
-            key={f.label}
-            style={stepStyles.featureRow}
-            accessible
-            accessibilityLabel={`${f.label} : ${f.desc}`}
-          >
-            <Text style={stepStyles.featureEmoji} accessibilityElementsHidden>{f.emoji}</Text>
-            <View style={stepStyles.featureText}>
-              <Text style={stepStyles.featureLabel}>{f.label}</Text>
-              <Text style={stepStyles.featureDesc}>{f.desc}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <View style={stepStyles.privacyNote} accessible accessibilityLabel="Vos données restent sur votre appareil, chiffrées et privées.">
-        <Text style={stepStyles.privacyIcon} accessibilityElementsHidden>🔒</Text>
-        <Text style={stepStyles.privacyText}>
-          Vos données restent sur votre appareil.{'\n'}Chiffrées. Privées. Jamais partagées.
-        </Text>
+          style={styles.nextButton}
+        />
       </View>
     </View>
   )
 }
 
-// ─── Étape 2 : Choix du mode ──────────────────────────────────────────────────
+// ─── Étape 1 ──────────────────────────────────────────────────────────────────
 
-interface StepTrackingModeProps {
+function StepWelcome({ fr }: { fr: boolean }): React.JSX.Element {
+  return (
+    <View style={styles.step}>
+      <View style={styles.bigIcon}>
+        <Icon name="flower" size={48} color={colors.primary} />
+      </View>
+      <AppText variant="h1" center style={styles.stepTitle}>
+        {fr ? 'Bienvenue sur LadyCycle' : 'Welcome to LadyCycle'}
+      </AppText>
+      <AppText variant="body" tone="secondary" center style={styles.stepSubtitle}>
+        {fr
+          ? 'Ton compagnon de suivi du cycle. Tes données restent privées, rien que pour toi.'
+          : 'Your cycle-tracking companion. Your data stays private — just for you.'}
+      </AppText>
+
+      <View style={styles.featureList}>
+        {getFeatures(fr).map((f) => (
+          <Card key={f.label} style={styles.featureRow}>
+            <View style={styles.featureIcon}>
+              <Icon name={f.icon} size={20} color={colors.primary} />
+            </View>
+            <View style={styles.featureText}>
+              <AppText variant="bodyStrong">{f.label}</AppText>
+              <AppText variant="caption" tone="secondary">
+                {f.desc}
+              </AppText>
+            </View>
+          </Card>
+        ))}
+      </View>
+
+      <Card tint={colors.successSoft} style={styles.privacyNote}>
+        <Icon name="lock" size={18} color={colors.phase.follicular.text} />
+        <AppText variant="caption" style={[styles.privacyText, { color: colors.phase.follicular.text }]}>
+          {fr
+            ? 'Tes données restent sur ton téléphone. Privées. Protégées. Jamais partagées.'
+            : 'Your data stays on your phone. Private. Protected. Never shared.'}
+        </AppText>
+      </Card>
+    </View>
+  )
+}
+
+// ─── Étape 2 ──────────────────────────────────────────────────────────────────
+
+function StepMode({
+  fr,
+  selected,
+  onSelect,
+}: {
+  fr: boolean
   selected: TrackingMode
   onSelect: (mode: TrackingMode) => void
-}
-
-function StepTrackingMode({ selected, onSelect }: StepTrackingModeProps): React.JSX.Element {
+}): React.JSX.Element {
   return (
-    <View style={stepStyles.container}>
-      <Text style={stepStyles.bigEmoji} accessibilityElementsHidden>🎯</Text>
-      <Text style={stepStyles.title} accessibilityRole="header">
-        Quel est votre objectif ?
-      </Text>
-      <Text style={stepStyles.subtitle}>
-        Choisissez le mode adapté à votre situation. Vous pourrez le changer à tout moment dans les paramètres.
-      </Text>
+    <View style={styles.step}>
+      <View style={styles.bigIcon}>
+        <Icon name="target" size={44} color={colors.primary} />
+      </View>
+      <AppText variant="h1" center style={styles.stepTitle}>
+        {fr ? 'Quel est ton objectif ?' : 'What is your goal?'}
+      </AppText>
+      <AppText variant="body" tone="secondary" center style={styles.stepSubtitle}>
+        {fr
+          ? 'Tu pourras le changer à tout moment dans les réglages.'
+          : 'You can change it any time in settings.'}
+      </AppText>
 
-      <View
-        style={stepStyles.modeList}
-        accessible
-        accessibilityLabel="Sélecteur de mode de suivi"
-        accessibilityRole="radiogroup"
-      >
-        {TRACKING_MODES.map((mode) => (
-          <TouchableOpacity
-            key={mode.value}
-            style={[
-              stepStyles.modeCard,
-              selected === mode.value && stepStyles.modeCardSelected,
-            ]}
-            onPress={() => onSelect(mode.value)}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: selected === mode.value }}
-            accessibilityLabel={`${mode.label}. ${mode.description}`}
-          >
-            <Text style={stepStyles.modeEmoji} accessibilityElementsHidden>{mode.emoji}</Text>
-            <View style={stepStyles.modeText}>
-              <Text
-                style={[
-                  stepStyles.modeLabel,
-                  selected === mode.value && stepStyles.modeLabelSelected,
-                ]}
-              >
-                {mode.label}
-              </Text>
-              <Text style={stepStyles.modeDesc}>{mode.description}</Text>
-            </View>
-            {selected === mode.value && (
-              <Text style={stepStyles.modeCheck} accessibilityElementsHidden>✓</Text>
-            )}
-          </TouchableOpacity>
-        ))}
+      <View style={styles.modeList} accessibilityRole="radiogroup">
+        {getModes(fr).map((mode) => {
+          const isSelected = selected === mode.value
+          return (
+            <TouchableOpacity
+              key={mode.value}
+              activeOpacity={0.7}
+              style={[styles.modeCard, isSelected && styles.modeCardSelected]}
+              onPress={() => onSelect(mode.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: isSelected }}
+              accessibilityLabel={`${mode.label}. ${mode.description}`}
+            >
+              <Icon
+                name={mode.icon}
+                size={22}
+                color={isSelected ? colors.primaryDark : colors.textSecondary}
+              />
+              <View style={styles.modeText}>
+                <AppText
+                  variant="bodyStrong"
+                  style={isSelected ? { color: colors.primaryDark } : undefined}
+                >
+                  {mode.label}
+                </AppText>
+                <AppText variant="caption" tone="secondary">
+                  {mode.description}
+                </AppText>
+              </View>
+              {isSelected && <Icon name="check" size={18} color={colors.primary} />}
+            </TouchableOpacity>
+          )
+        })}
       </View>
     </View>
   )
 }
 
-// ─── Étape 3 : Prêt à commencer ───────────────────────────────────────────────
+// ─── Étape 3 ──────────────────────────────────────────────────────────────────
 
-function StepReady(): React.JSX.Element {
+function StepReady({ fr }: { fr: boolean }): React.JSX.Element {
   return (
-    <View style={stepStyles.container}>
-      <Text style={stepStyles.bigEmoji} accessibilityElementsHidden>✨</Text>
-      <Text style={stepStyles.title} accessibilityRole="header">
-        Tout est prêt !
-      </Text>
-      <Text style={stepStyles.subtitle}>
-        Commencez par enregistrer vos dernières règles pour obtenir vos premières prédictions.
-      </Text>
-
-      <View style={stepStyles.tipCard}>
-        <Text style={stepStyles.tipTitle}>💡 Conseil de démarrage</Text>
-        <Text style={stepStyles.tipText}>
-          Plus vous enregistrez de cycles, plus les prédictions seront précises.
-          Avec 3 cycles, vous obtenez des prédictions de confiance moyenne.
-          Avec 6 cycles ou plus, les prédictions deviennent très fiables.
-        </Text>
+    <View style={styles.step}>
+      <View style={styles.bigIcon}>
+        <Icon name="sparkles" size={44} color={colors.primary} />
       </View>
+      <AppText variant="h1" center style={styles.stepTitle}>
+        {fr ? 'Tout est prêt' : 'You’re all set'}
+      </AppText>
+      <AppText variant="body" tone="secondary" center style={styles.stepSubtitle}>
+        {fr
+          ? 'Commence par enregistrer tes dernières règles pour obtenir tes premières prédictions.'
+          : 'Start by logging your last period to get your first predictions.'}
+      </AppText>
 
-      <View style={stepStyles.tipCard}>
-        <Text style={stepStyles.tipTitle}>🔒 Vos données sont sécurisées</Text>
-        <Text style={stepStyles.tipText}>
-          Toutes vos données sont chiffrées avec AES-256 directement sur votre appareil.
-          Aucune information ne quitte votre téléphone sans votre accord explicite.
-        </Text>
-      </View>
+      <Card accent={colors.primary} style={styles.tipCard}>
+        <View style={styles.tipHeader}>
+          <Icon name="sparkles" size={18} color={colors.primaryDark} />
+          <AppText variant="bodyStrong">
+            {fr ? 'Plus tu enregistres, plus c’est précis' : 'The more you log, the more accurate it gets'}
+          </AppText>
+        </View>
+        <AppText variant="caption" tone="secondary" style={styles.tipText}>
+          {fr
+            ? 'Dès 3 cycles, tes prédictions passent en confiance moyenne. À partir de 6 cycles, elles deviennent très fiables. L’app te dira toujours où elle en est.'
+            : 'From 3 cycles, your predictions reach medium confidence. From 6 cycles, they become very reliable. The app always tells you where it stands.'}
+        </AppText>
+      </Card>
+
+      <Card accent={colors.success} style={styles.tipCard}>
+        <View style={styles.tipHeader}>
+          <Icon name="lock" size={18} color={colors.phase.follicular.text} />
+          <AppText variant="bodyStrong">
+            {fr ? 'Tes données sont protégées' : 'Your data is protected'}
+          </AppText>
+        </View>
+        <AppText variant="caption" tone="secondary" style={styles.tipText}>
+          {fr
+            ? 'Tout est gardé en sécurité sur ton téléphone, comme dans un coffre. Toi seule y as accès, et rien n’est envoyé sans ton accord.'
+            : 'Everything is kept safe on your phone, like in a vault. Only you can access it, and nothing is sent without your consent.'}
+        </AppText>
+      </Card>
     </View>
   )
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safeArea: {
+  root: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.background,
   },
-  progressBar: {
+  progress: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    paddingTop: 16,
-    paddingBottom: 8,
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   progressDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: '#E0E0E0',
+    borderRadius: radii.pill,
+    backgroundColor: colors.border,
   },
   progressDotActive: {
-    backgroundColor: '#E91E63',
+    backgroundColor: colors.primary,
     width: 24,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingBottom: 16,
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.xxl,
+  },
+  step: {
+    alignItems: 'center',
+    paddingTop: spacing.xl,
+  },
+  bigIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
+  stepTitle: {
+    marginBottom: spacing.sm,
+  },
+  stepSubtitle: {
+    marginBottom: spacing.xxl,
+    lineHeight: 22,
+    paddingHorizontal: spacing.md,
+  },
+  featureList: {
+    width: '100%',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  featureIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureText: {
+    flex: 1,
+  },
+  privacyNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    width: '100%',
+  },
+  privacyText: {
+    flex: 1,
+    lineHeight: 18,
+  },
+  modeList: {
+    width: '100%',
+    gap: spacing.md,
+  },
+  modeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modeCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  modeText: {
+    flex: 1,
+  },
+  tipCard: {
+    width: '100%',
+    marginBottom: spacing.md,
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  tipText: {
+    lineHeight: 19,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    backgroundColor: '#FAFAFA',
-  },
-  backButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  backButtonPlaceholder: {
-    width: 80,
-  },
-  backButtonText: {
-    fontSize: 15,
-    color: '#9E9E9E',
-    fontWeight: '500',
+    borderTopColor: colors.border,
   },
   nextButton: {
-    backgroundColor: '#E91E63',
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    shadowColor: '#E91E63',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  nextButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-})
-
-const stepStyles = StyleSheet.create({
-  container: {
-    paddingTop: 24,
-    alignItems: 'center',
-  },
-  bigEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#212121',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#757575',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 28,
-    maxWidth: SCREEN_WIDTH - 80,
-  },
-  // ── Features (étape 1) ──────────────────────────────────────────────────
-  featureList: {
-    width: '100%',
-    gap: 12,
-    marginBottom: 24,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  featureEmoji: {
-    fontSize: 26,
-    width: 36,
-    textAlign: 'center',
-  },
-  featureText: {
-    flex: 1,
-  },
-  featureLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 2,
-  },
-  featureDesc: {
-    fontSize: 12,
-    color: '#9E9E9E',
-    lineHeight: 16,
-  },
-  privacyNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    borderRadius: 10,
-    padding: 14,
-    gap: 10,
-    width: '100%',
-  },
-  privacyIcon: {
-    fontSize: 20,
-  },
-  privacyText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#2E7D32',
-    lineHeight: 18,
-  },
-  // ── Modes (étape 2) ─────────────────────────────────────────────────────
-  modeList: {
-    width: '100%',
-    gap: 12,
-  },
-  modeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: '#F0F0F0',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  modeCardSelected: {
-    borderColor: '#E91E63',
-    backgroundColor: '#FFF0F5',
-  },
-  modeEmoji: {
-    fontSize: 28,
-    width: 36,
-    textAlign: 'center',
-  },
-  modeText: {
-    flex: 1,
-  },
-  modeLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#424242',
-    marginBottom: 3,
-  },
-  modeLabelSelected: {
-    color: '#880E4F',
-  },
-  modeDesc: {
-    fontSize: 12,
-    color: '#9E9E9E',
-    lineHeight: 17,
-  },
-  modeCheck: {
-    fontSize: 18,
-    color: '#E91E63',
-    fontWeight: '700',
-  },
-  // ── Tips (étape 3) ──────────────────────────────────────────────────────
-  tipCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 14,
-    borderLeftWidth: 4,
-    borderLeftColor: '#E91E63',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  tipTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 8,
-  },
-  tipText: {
-    fontSize: 13,
-    color: '#616161',
-    lineHeight: 20,
+    paddingHorizontal: spacing.xxl,
   },
 })
