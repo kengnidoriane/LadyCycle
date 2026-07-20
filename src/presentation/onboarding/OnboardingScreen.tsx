@@ -173,8 +173,8 @@ function StepWelcome({ fr }: { fr: boolean }): React.JSX.Element {
         <Icon name="lock" size={18} color={colors.phase.follicular.text} />
         <AppText variant="caption" style={[styles.privacyText, { color: colors.phase.follicular.text }]}>
           {fr
-            ? 'Tes données restent sur ton téléphone. Privées. Protégées. Jamais partagées.'
-            : 'Your data stays on your phone. Private. Protected. Never shared.'}
+            ? 'Tes données restent sur ton téléphone. Rien que pour toi. Jamais partagées.'
+            : 'Your data stays on your phone. Just for you. Never shared.'}
         </AppText>
       </Card>
     </View>
@@ -279,13 +279,13 @@ function StepReady({ fr }: { fr: boolean }): React.JSX.Element {
         <View style={styles.tipHeader}>
           <Icon name="lock" size={18} color={colors.phase.follicular.text} />
           <AppText variant="bodyStrong">
-            {fr ? 'Tes données sont protégées' : 'Your data is protected'}
+            {fr ? 'Tes données restent chez toi' : 'Your data stays with you'}
           </AppText>
         </View>
         <AppText variant="caption" tone="secondary" style={styles.tipText}>
           {fr
-            ? 'Tout est gardé en sécurité sur ton téléphone, comme dans un coffre. Toi seule y as accès, et rien n’est envoyé sans ton accord.'
-            : 'Everything is kept safe on your phone, like in a vault. Only you can access it, and nothing is sent without your consent.'}
+            ? 'Tout reste sur ton téléphone. Pas de compte, et rien n’est envoyé sur internet sans ton accord.'
+            : 'Everything stays on your phone. No account, and nothing is sent online without your consent.'}
         </AppText>
       </Card>
     </View>
