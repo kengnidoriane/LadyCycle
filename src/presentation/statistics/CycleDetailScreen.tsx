@@ -27,6 +27,9 @@ import {
 } from 'react-native'
 import type { Cycle, Symptom } from '../../infrastructure/db/CycleRepository'
 import { formatDate } from './useStatistics'
+import { colors, spacing, radii } from '../theme'
+import { useI18n } from '../i18n/I18nContext'
+import { ScreenHeader } from '../components'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -43,47 +46,72 @@ interface CycleDetailScreenProps {
 
 // ─── Labels des symptômes ─────────────────────────────────────────────────────
 
-const SYMPTOM_LABELS: Record<string, string> = {
-  // Douleurs
+const SYMPTOM_LABELS_FR: Record<string, string> = {
   cramps: 'Crampes',
   headache: 'Maux de tête',
   back_pain: 'Douleurs dorsales',
   breast_tenderness: 'Sensibilité des seins',
-  // Humeur
   irritable: 'Irritabilité',
   anxious: 'Anxiété',
   happy: 'Bonne humeur',
   sad: 'Tristesse',
-  mood_swings: 'Sautes d\'humeur',
-  // Énergie
+  mood_swings: "Sautes d'humeur",
   high_energy: 'Énergie élevée',
   low_energy: 'Énergie faible',
   fatigue: 'Fatigue',
-  // Physique
   bloating: 'Ballonnements',
   acne: 'Acné',
   nausea: 'Nausées',
   food_cravings: 'Envies alimentaires',
-  // Sommeil
   insomnia: 'Insomnie',
   good_sleep: 'Bon sommeil',
   restless_sleep: 'Sommeil agité',
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  pain: '🔴 Douleurs',
-  mood: '💜 Humeur',
-  energy: '⚡ Énergie',
-  physical: '🌿 Physique',
-  sleep: '🌙 Sommeil',
+const SYMPTOM_LABELS_EN: Record<string, string> = {
+  cramps: 'Cramps',
+  headache: 'Headache',
+  back_pain: 'Back pain',
+  breast_tenderness: 'Breast tenderness',
+  irritable: 'Irritability',
+  anxious: 'Anxiety',
+  happy: 'Happy',
+  sad: 'Sad',
+  mood_swings: 'Mood swings',
+  high_energy: 'High energy',
+  low_energy: 'Low energy',
+  fatigue: 'Fatigue',
+  bloating: 'Bloating',
+  acne: 'Acne',
+  nausea: 'Nausea',
+  food_cravings: 'Food cravings',
+  insomnia: 'Insomnia',
+  good_sleep: 'Good sleep',
+  restless_sleep: 'Restless sleep',
+}
+
+const CATEGORY_LABELS_FR: Record<string, string> = {
+  pain: 'Douleurs',
+  mood: 'Humeur',
+  energy: 'Énergie',
+  physical: 'Physique',
+  sleep: 'Sommeil',
+}
+
+const CATEGORY_LABELS_EN: Record<string, string> = {
+  pain: 'Pain',
+  mood: 'Mood',
+  energy: 'Energy',
+  physical: 'Physical',
+  sleep: 'Sleep',
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  pain: '#FFEBEE',
-  mood: '#F3E5F5',
-  energy: '#FFF9C4',
-  physical: '#E8F5E9',
-  sleep: '#E3F2FD',
+  pain: colors.phase.menstrual.soft,
+  mood: colors.phase.luteal.soft,
+  energy: colors.phase.ovulation.soft,
+  physical: colors.phase.follicular.soft,
+  sleep: colors.infoSoft,
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -104,6 +132,9 @@ export function CycleDetailScreen({
   onMarkExceptional,
   onUnmarkExceptional,
 }: CycleDetailScreenProps): React.JSX.Element {
+  const { currentLanguage } = useI18n()
+  const lang = currentLanguage === 'en' ? 'en' : 'fr'
+  const fr = lang !== 'en'
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showReasonForm, setShowReasonForm] = useState(false)
   const [reason, setReason] = useState('')
@@ -132,12 +163,14 @@ export function CycleDetailScreen({
 
   async function handleUnmarkExceptional(): Promise<void> {
     Alert.alert(
-      'Réintégrer ce cycle',
-      'Ce cycle sera réintégré dans les calculs de statistiques et de prédictions. Continuer ?',
+      fr ? 'Réintégrer ce cycle' : 'Restore this cycle',
+      fr
+        ? 'Ce cycle sera réintégré dans les calculs de statistiques et de prédictions. Continuer ?'
+        : 'This cycle will be included again in statistics and predictions. Continue?',
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: fr ? 'Annuler' : 'Cancel', style: 'cancel' },
         {
-          text: 'Réintégrer',
+          text: fr ? 'Réintégrer' : 'Restore',
           style: 'default',
           onPress: async () => {
             setIsSubmitting(true)
@@ -154,10 +187,10 @@ export function CycleDetailScreen({
 
   // ── Données formatées ─────────────────────────────────────────────────────
 
-  const startLabel = formatDate(cycle.startDate)
-  const endLabel = cycle.endDate ? formatDate(cycle.endDate) : 'En cours'
+  const startLabel = formatDate(cycle.startDate, lang)
+  const endLabel = cycle.endDate ? formatDate(cycle.endDate, lang) : fr ? 'En cours' : 'Ongoing'
   const menstruationEndLabel = cycle.menstruationEndDate
-    ? formatDate(cycle.menstruationEndDate)
+    ? formatDate(cycle.menstruationEndDate, lang)
     : '—'
 
   // Grouper les symptômes par catégorie
@@ -183,21 +216,12 @@ export function CycleDetailScreen({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── En-tête ────────────────────────────────────────────────────── */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={onBack}
-            style={styles.backButton}
-            accessible={true}
-            accessibilityLabel="Retour à l'historique"
-            accessibilityRole="button"
-          >
-            <Text style={styles.backButtonText}>‹ Retour</Text>
-          </TouchableOpacity>
-          <Text style={styles.screenTitle} accessibilityRole="header">
-            Détail du cycle
-          </Text>
-        </View>
+        {/* ── En-tête avec retour unifié ─────────────────────────────────── */}
+        <ScreenHeader
+          title={fr ? 'Détail du cycle' : 'Cycle details'}
+          onBack={onBack}
+          backLabel={fr ? "Retour à l'historique" : 'Back to history'}
+        />
 
         {/* ── Carte des données du cycle ─────────────────────────────────── */}
         {/* Exigences 7.5, 13.1 : afficher toutes les données du cycle */}
@@ -216,21 +240,21 @@ export function CycleDetailScreen({
           {cycle.isExceptional && (
             <View style={styles.exceptionalBanner} accessibilityElementsHidden={true}>
               <Text style={styles.exceptionalBannerText}>
-                ⚠️ Cycle exceptionnel — exclu des calculs
+                ⚠️ {fr ? 'Cycle exceptionnel — exclu des calculs' : 'Exceptional cycle — excluded from calculations'}
               </Text>
             </View>
           )}
 
           {/* Dates */}
           <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Début des règles</Text>
+            <Text style={styles.dataLabel}>{fr ? 'Début des règles' : 'Period start'}</Text>
             <Text style={styles.dataValue}>{startLabel}</Text>
           </View>
 
           <View style={styles.dataDivider} />
 
           <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Fin des règles</Text>
+            <Text style={styles.dataLabel}>{fr ? 'Fin des règles' : 'Period end'}</Text>
             <Text style={styles.dataValue}>{menstruationEndLabel}</Text>
           </View>
 
@@ -238,9 +262,9 @@ export function CycleDetailScreen({
             <>
               <View style={styles.dataDivider} />
               <View style={styles.dataRow}>
-                <Text style={styles.dataLabel}>Durée des règles</Text>
+                <Text style={styles.dataLabel}>{fr ? 'Durée des règles' : 'Period length'}</Text>
                 <Text style={styles.dataValue}>
-                  {cycle.menstruationDuration} jour{cycle.menstruationDuration > 1 ? 's' : ''}
+                  {cycle.menstruationDuration} {fr ? `jour${cycle.menstruationDuration > 1 ? 's' : ''}` : `day${cycle.menstruationDuration > 1 ? 's' : ''}`}
                 </Text>
               </View>
             </>
@@ -249,7 +273,7 @@ export function CycleDetailScreen({
           <View style={styles.dataDivider} />
 
           <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>Fin du cycle</Text>
+            <Text style={styles.dataLabel}>{fr ? 'Fin du cycle' : 'Cycle end'}</Text>
             <Text style={styles.dataValue}>{endLabel}</Text>
           </View>
 
@@ -257,9 +281,9 @@ export function CycleDetailScreen({
             <>
               <View style={styles.dataDivider} />
               <View style={styles.dataRow}>
-                <Text style={styles.dataLabel}>Durée du cycle</Text>
+                <Text style={styles.dataLabel}>{fr ? 'Durée du cycle' : 'Cycle length'}</Text>
                 <Text style={[styles.dataValue, styles.dataValueHighlight]}>
-                  {cycle.duration} jours
+                  {cycle.duration} {fr ? 'jours' : 'days'}
                 </Text>
               </View>
             </>
@@ -270,7 +294,7 @@ export function CycleDetailScreen({
             <>
               <View style={styles.dataDivider} />
               <View style={styles.dataRow}>
-                <Text style={styles.dataLabel}>Raison</Text>
+                <Text style={styles.dataLabel}>{fr ? 'Raison' : 'Reason'}</Text>
                 <Text style={styles.dataValue}>{cycle.exceptionalReason}</Text>
               </View>
             </>
@@ -281,13 +305,13 @@ export function CycleDetailScreen({
         {/* Exigence 7.5 : afficher les symptômes enregistrés pendant ce cycle */}
         <View style={styles.symptomsSection}>
           <Text style={styles.sectionTitle}>
-            Symptômes ({cycle.symptoms.length})
+            {fr ? 'Symptômes' : 'Symptoms'} ({cycle.symptoms.length})
           </Text>
 
           {cycle.symptoms.length === 0 ? (
             <View style={styles.emptySymptoms}>
               <Text style={styles.emptyText}>
-                Aucun symptôme enregistré pour ce cycle.
+                {fr ? 'Aucun symptôme enregistré pour ce cycle.' : 'No symptoms recorded for this cycle.'}
               </Text>
             </View>
           ) : (
@@ -298,6 +322,7 @@ export function CycleDetailScreen({
                   key={cat}
                   category={cat}
                   symptoms={symptomsByCategory[cat]}
+                  lang={lang}
                 />
               ))
           )}
@@ -316,32 +341,31 @@ export function CycleDetailScreen({
                   accessible={true}
                   accessibilityLabel="Marquer ce cycle comme exceptionnel"
                   accessibilityRole="button"
-                  accessibilityHint="Ce cycle sera exclu des calculs de statistiques et de prédictions"
+                  accessibilityHint={fr ? 'Ce cycle sera exclu des calculs de statistiques et de prédictions' : 'This cycle will be excluded from statistics and predictions'}
                 >
                   <Text style={styles.markExceptionalButtonText}>
-                    ⚠️ Marquer comme exceptionnel
+                    ⚠️ {fr ? 'Marquer comme exceptionnel' : 'Mark as exceptional'}
                   </Text>
                 </TouchableOpacity>
               ) : (
                 /* Formulaire de raison */
                 <View style={styles.reasonForm}>
                   <Text style={styles.reasonFormTitle}>
-                    Raison (optionnelle)
+                    {fr ? 'Raison (optionnelle)' : 'Reason (optional)'}
                   </Text>
                   <Text style={styles.reasonFormHint}>
-                    Ex : maladie, stress intense, voyage, traitement médical…
+                    {fr ? 'Ex : maladie, stress intense, voyage, traitement médical…' : 'e.g. illness, intense stress, travel, medication…'}
                   </Text>
                   <TextInput
                     style={styles.reasonInput}
                     value={reason}
                     onChangeText={setReason}
-                    placeholder="Saisir une raison…"
-                    placeholderTextColor="#BDBDBD"
+                    placeholder={fr ? 'Saisir une raison…' : 'Enter a reason…'}
+                    placeholderTextColor={colors.textTertiary}
                     maxLength={200}
                     multiline
                     accessible={true}
-                    accessibilityLabel="Raison du marquage exceptionnel"
-                    accessibilityHint="Optionnel — décrivez pourquoi ce cycle est exceptionnel"
+                    accessibilityLabel={fr ? 'Raison du marquage exceptionnel' : 'Reason for marking exceptional'}
                   />
                   <View style={styles.reasonFormActions}>
                     <TouchableOpacity
@@ -349,24 +373,24 @@ export function CycleDetailScreen({
                       onPress={handleCancelMark}
                       disabled={isSubmitting}
                       accessible={true}
-                      accessibilityLabel="Annuler le marquage"
+                      accessibilityLabel={fr ? 'Annuler le marquage' : 'Cancel marking'}
                       accessibilityRole="button"
                     >
-                      <Text style={styles.cancelReasonButtonText}>Annuler</Text>
+                      <Text style={styles.cancelReasonButtonText}>{fr ? 'Annuler' : 'Cancel'}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.confirmMarkButton}
                       onPress={handleConfirmMark}
                       disabled={isSubmitting}
                       accessible={true}
-                      accessibilityLabel="Confirmer le marquage comme exceptionnel"
+                      accessibilityLabel={fr ? 'Confirmer le marquage comme exceptionnel' : 'Confirm marking as exceptional'}
                       accessibilityRole="button"
                       accessibilityState={{ busy: isSubmitting }}
                     >
                       {isSubmitting ? (
-                        <ActivityIndicator color="#FFFFFF" size="small" />
+                        <ActivityIndicator color={colors.textInverse} size="small" />
                       ) : (
-                        <Text style={styles.confirmMarkButtonText}>Confirmer</Text>
+                        <Text style={styles.confirmMarkButtonText}>{fr ? 'Confirmer' : 'Confirm'}</Text>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -381,15 +405,15 @@ export function CycleDetailScreen({
               onPress={handleUnmarkExceptional}
               disabled={isSubmitting}
               accessible={true}
-              accessibilityLabel="Réintégrer ce cycle dans les calculs"
+              accessibilityLabel={fr ? 'Réintégrer ce cycle dans les calculs' : 'Restore this cycle into calculations'}
               accessibilityRole="button"
-              accessibilityHint="Ce cycle sera réintégré dans les statistiques et les prédictions"
+              accessibilityHint={fr ? 'Ce cycle sera réintégré dans les statistiques et les prédictions' : 'This cycle will be included again in statistics and predictions'}
             >
               {isSubmitting ? (
-                <ActivityIndicator color="#E91E63" size="small" />
+                <ActivityIndicator color={colors.primary} size="small" />
               ) : (
                 <Text style={styles.unmarkButtonText}>
-                  ✓ Réintégrer dans les calculs
+                  ✓ {fr ? 'Réintégrer dans les calculs' : 'Restore into calculations'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -407,27 +431,30 @@ export function CycleDetailScreen({
 interface SymptomCategoryGroupProps {
   category: string
   symptoms: Symptom[]
+  lang: 'fr' | 'en'
 }
 
 /**
  * Groupe de symptômes par catégorie.
  * Affiche le titre de la catégorie et la liste des symptômes.
  */
-function SymptomCategoryGroup({ category, symptoms }: SymptomCategoryGroupProps): React.JSX.Element {
-  const categoryLabel = CATEGORY_LABELS[category] ?? category
+function SymptomCategoryGroup({ category, symptoms, lang }: SymptomCategoryGroupProps): React.JSX.Element {
+  const fr = lang !== 'en'
+  const labels = fr ? CATEGORY_LABELS_FR : CATEGORY_LABELS_EN
+  const categoryLabel = labels[category] ?? category
   const bgColor = CATEGORY_COLORS[category] ?? '#F5F5F5'
 
   return (
     <View
       style={[styles.categoryGroup, { backgroundColor: bgColor }]}
       accessible={true}
-      accessibilityLabel={`${categoryLabel} : ${symptoms.length} symptôme${symptoms.length > 1 ? 's' : ''}`}
+      accessibilityLabel={fr ? `${categoryLabel} : ${symptoms.length} symptôme${symptoms.length > 1 ? 's' : ''}` : `${categoryLabel}: ${symptoms.length} symptom${symptoms.length > 1 ? 's' : ''}`}
     >
       <Text style={styles.categoryTitle} accessibilityElementsHidden={true}>
         {categoryLabel}
       </Text>
       {symptoms.map(symptom => (
-        <SymptomRow key={symptom.id} symptom={symptom} />
+        <SymptomRow key={symptom.id} symptom={symptom} lang={lang} />
       ))}
     </View>
   )
@@ -437,20 +464,25 @@ function SymptomCategoryGroup({ category, symptoms }: SymptomCategoryGroupProps)
 
 interface SymptomRowProps {
   symptom: Symptom
+  lang: 'fr' | 'en'
 }
 
 /**
  * Ligne représentant un symptôme.
  * Affiche le nom, la date, l'intensité (si douleur) et les notes.
  */
-function SymptomRow({ symptom }: SymptomRowProps): React.JSX.Element {
-  const label = SYMPTOM_LABELS[symptom.type] ?? symptom.type
-  const dateLabel = formatDate(symptom.date)
+function SymptomRow({ symptom, lang }: SymptomRowProps): React.JSX.Element {
+  const fr = lang !== 'en'
+  const label = (fr ? SYMPTOM_LABELS_FR : SYMPTOM_LABELS_EN)[symptom.type] ?? symptom.type
+  const dateLabel = formatDate(symptom.date, lang)
 
-  const accessibilityLabel =
-    `${label} le ${dateLabel}` +
-    (symptom.intensity !== null ? `, intensité ${symptom.intensity} sur 5` : '') +
-    (symptom.notes ? `, note : ${symptom.notes}` : '')
+  const accessibilityLabel = fr
+    ? `${label} le ${dateLabel}` +
+      (symptom.intensity !== null ? `, intensité ${symptom.intensity} sur 5` : '') +
+      (symptom.notes ? `, note : ${symptom.notes}` : '')
+    : `${label} on ${dateLabel}` +
+      (symptom.intensity !== null ? `, intensity ${symptom.intensity} of 5` : '') +
+      (symptom.notes ? `, note: ${symptom.notes}` : '')
 
   return (
     <View
@@ -470,7 +502,7 @@ function SymptomRow({ symptom }: SymptomRowProps): React.JSX.Element {
       {symptom.intensity !== null && (
         <IntensityDots
           intensity={symptom.intensity}
-          accessibilityLabel={`Intensité : ${symptom.intensity} sur 5`}
+          accessibilityLabel={fr ? `Intensité : ${symptom.intensity} sur 5` : `Intensity: ${symptom.intensity} of 5`}
         />
       )}
 
@@ -508,7 +540,7 @@ function IntensityDots({ intensity, accessibilityLabel }: IntensityDotsProps): R
           key={i}
           style={[
             styles.intensityDot,
-            { backgroundColor: i <= intensity ? '#E91E63' : '#F5F5F5' },
+            { backgroundColor: i <= intensity ? colors.primary : colors.surfaceAlt },
           ]}
           accessibilityElementsHidden={true}
         />
@@ -522,123 +554,117 @@ function IntensityDots({ intensity, accessibilityLabel }: IntensityDotsProps): R
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: spacing.xl,
   },
-  // ── En-tête ─────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
+    marginBottom: spacing.lg,
+    gap: spacing.md,
   },
   backButton: {
-    padding: 4,
+    padding: spacing.xs,
   },
   backButtonText: {
     fontSize: 16,
-    color: '#E91E63',
+    color: colors.primaryDark,
     fontWeight: '600',
   },
   screenTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#212121',
+    color: colors.textPrimary,
   },
-  // ── Carte cycle ──────────────────────────────────────────────────────────
   cycleCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
   },
   cycleCardExceptional: {
     opacity: 0.85,
-    borderWidth: 1,
-    borderColor: '#EEEEEE',
   },
   exceptionalBanner: {
-    backgroundColor: '#FFF8E1',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: colors.phase.ovulation.soft,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFE082',
+    borderBottomColor: colors.phase.ovulation.main,
   },
   exceptionalBannerText: {
     fontSize: 13,
-    color: '#F57F17',
+    color: colors.phase.ovulation.text,
     fontWeight: '600',
   },
   dataRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 13,
   },
   dataDivider: {
     height: 1,
-    backgroundColor: '#F5F5F5',
-    marginHorizontal: 16,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
   },
   dataLabel: {
     fontSize: 14,
-    color: '#757575',
+    color: colors.textSecondary,
   },
   dataValue: {
     fontSize: 14,
-    color: '#212121',
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   dataValueHighlight: {
-    color: '#E91E63',
+    color: colors.primaryDark,
     fontWeight: '700',
     fontSize: 16,
   },
-  // ── Symptômes ────────────────────────────────────────────────────────────
   symptomsSection: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#212121',
-    marginBottom: 12,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
   },
   emptySymptoms: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.xl,
     alignItems: 'center',
   },
   emptyText: {
     fontSize: 14,
-    color: '#9E9E9E',
+    color: colors.textTertiary,
     textAlign: 'center',
   },
   categoryGroup: {
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   categoryTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#424242',
-    marginBottom: 8,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   symptomRow: {
-    paddingVertical: 6,
+    paddingVertical: spacing.xs,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
   },
@@ -646,126 +672,121 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   symptomName: {
     fontSize: 14,
-    color: '#212121',
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   symptomDate: {
     fontSize: 12,
-    color: '#9E9E9E',
+    color: colors.textTertiary,
   },
   symptomNotes: {
     fontSize: 12,
-    color: '#757575',
+    color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: 2,
   },
   intensityContainer: {
     flexDirection: 'row',
-    gap: 4,
+    gap: spacing.xs,
     marginBottom: 2,
   },
   intensityDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: radii.pill,
   },
-  // ── Actions ──────────────────────────────────────────────────────────────
   actionSection: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   markExceptionalButton: {
-    backgroundColor: '#FFF8E1',
-    borderRadius: 12,
-    paddingVertical: 14,
+    backgroundColor: colors.phase.ovulation.soft,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FFE082',
+    borderColor: colors.phase.ovulation.main,
   },
   markExceptionalButtonText: {
     fontSize: 15,
-    color: '#F57F17',
+    color: colors.phase.ovulation.text,
     fontWeight: '600',
   },
   unmarkButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E91E63',
+    borderColor: colors.primary,
   },
   unmarkButtonText: {
     fontSize: 15,
-    color: '#E91E63',
+    color: colors.primaryDark,
     fontWeight: '600',
   },
-  // ── Formulaire de raison ─────────────────────────────────────────────────
   reasonForm: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
   },
   reasonFormTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#212121',
-    marginBottom: 4,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   reasonFormHint: {
     fontSize: 12,
-    color: '#9E9E9E',
-    marginBottom: 12,
+    color: colors.textTertiary,
+    marginBottom: spacing.md,
     lineHeight: 16,
   },
   reasonInput: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    padding: spacing.md,
     fontSize: 14,
-    color: '#212121',
+    color: colors.textPrimary,
     minHeight: 80,
     textAlignVertical: 'top',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   reasonFormActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.sm,
   },
   cancelReasonButton: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   cancelReasonButtonText: {
     fontSize: 14,
-    color: '#757575',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   confirmMarkButton: {
     flex: 2,
-    backgroundColor: '#F57F17',
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: colors.phase.ovulation.main,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   confirmMarkButtonText: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: colors.textInverse,
     fontWeight: '700',
   },
   bottomSpacer: {
-    height: 32,
+    height: spacing.xxxl,
   },
 })

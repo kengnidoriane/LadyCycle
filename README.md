@@ -1,97 +1,184 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# LadyCycle
 
-# Getting Started
+A privacy-first menstrual cycle tracking app built with React Native. All data stays on your device, encrypted with AES-256. Predictions improve over time using an adaptive algorithm that learns from your personal cycle history.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## Features
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+- **Cycle tracking** — log period start and end dates, view your full history
+- **Predictions** — next period and ovulation estimates with a confidence indicator (low / medium / high)
+- **Fertile window** — calculated using the calendar method (ovulation − 5 days to ovulation + 1 day)
+- **Symptom tracking** — record daily symptoms across five categories: pain, mood, energy, physical, sleep
+- **Medication reminders** — schedule reminders tied to your cycle, log each dose with a precise UTC timestamp
+- **Wellness advice** — phase-aware tips (menstrual, follicular, ovulation, luteal) adapted to your tracking mode
+- **Exceptional cycles** — mark anomalous cycles (illness, stress) to exclude them from predictions without deleting them
+- **Statistics** — average cycle length, menstruation duration, regularity score (standard deviation σ)
+- **Proactive notifications** — configurable advance notice (1–7 days) for upcoming periods and fertile windows
+- **Tracking modes** — General, Trying to Conceive, Natural Contraception
+- **Bilingual** — French and English, auto-detected from system settings, switchable at runtime
+- **Local-first encryption** — AES-256 via SQLCipher; master key stored in Android Keystore / iOS Keychain, never leaves the device
+- **Cloud backup (E2EE)** — optional; requires generating a 12-word Recovery Kit (BIP-39) before the first sync
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
 
-```sh
-# Using npm
+## Architecture
+
+The project follows **DDD Lite** (Domain-Driven Design, simplified): business logic lives in `domain/` with zero external dependencies, making it fully testable without an emulator.
+
+```
+src/
+├── domain/              # Pure logic — no external dependencies
+│   ├── cycle/           # CycleManager, PredictionEngine, Cycle types
+│   ├── symptoms/        # SymptomTracker
+│   └── wellness/        # WellnessAdvisor
+│
+├── application/         # Use cases (orchestration layer)
+│   ├── RecordPeriodUseCase.ts
+│   ├── PredictNextCycleUseCase.ts
+│   ├── MarkCycleExceptionalUseCase.ts
+│   └── GetDailyAdviceUseCase.ts
+│
+├── infrastructure/      # Concrete implementations
+│   ├── db/              # SQLCipher, VersionManager, schema migrations
+│   ├── crypto/          # EncryptionService, RecoveryKitService
+│   ├── notifications/   # LocalNotifications (no push server)
+│   └── i18n/            # JSON translation files (fr / en)
+│
+└── presentation/        # React Native UI
+    ├── calendar/        # CalendarScreen, RecordPeriodForm, SymptomForm
+    ├── statistics/      # StatisticsScreen, CycleDetailScreen
+    ├── settings/        # SettingsScreen, SecurityScreen, RecoveryKitScreen
+    └── wellness/        # WellnessScreen
+```
+
+**Dependency rule**: `domain/` ← `application/` ← `infrastructure/` + `presentation/`
+
+---
+
+## Prediction Algorithm
+
+| History | Algorithm | Confidence |
+|---------|-----------|------------|
+| < 3 non-exceptional cycles | 28-day default | Low |
+| 3–5 non-exceptional cycles | Simple average | Medium |
+| ≥ 6 non-exceptional cycles | Weighted average `0.5·n + 0.3·(n-1) + 0.2·(n-2)` + σ | High / Medium / Low |
+
+Ovulation is estimated at **next period − 14 days** (Ogino-Knaus calendar method). Cycles marked as exceptional are excluded from all calculations.
+
+---
+
+## Data Model
+
+Dates use two distinct types to avoid timezone bugs:
+
+| Type | Format | Used for |
+|------|--------|----------|
+| `CalendarDate` | `YYYY-MM-DD` | Cycle dates, symptoms, predictions |
+| `UTCTimestamp` | ISO 8601 UTC | Medication logs, `created_at`, `updated_at` |
+
+The SQLite database is fully encrypted by SQLCipher. The master key never leaves the device's secure enclave (Keystore / Keychain).
+
+---
+
+## Security
+
+- **At-rest encryption**: AES-256 via SQLCipher — the entire `.db` file is encrypted
+- **Key storage**: Android Keystore / iOS Keychain — hardware-backed, inaccessible to other apps
+- **Cloud backup**: the already-encrypted SQLite file is uploaded; the master key is never transmitted
+- **Recovery Kit**: a 12-word BIP-39 mnemonic that derives the cloud decryption key; must be saved before the first sync
+- **Authentication**: PIN or biometrics (Face ID / Touch ID / BiometricPrompt); auto-lock configurable
+- **Schema migrations**: every migration runs inside a SQL transaction with a pre-migration backup; rolled back automatically on failure
+
+---
+
+## Testing
+
+The project uses **Jest** + **[fast-check](https://fast-check.dev)** for property-based testing.
+
+```bash
+# Run all tests
+cd LadyCycle
+npm test
+
+# Run with coverage report
+npx jest --coverage
+
+# Run only domain + application tests
+npx jest --testPathPattern="src/(domain|application)"
+```
+
+**37 correctness properties** are verified, each with a minimum of 100 fast-check iterations. Current coverage:
+
+| Metric | Value |
+|--------|-------|
+| Statements | 81% |
+| Lines | 82% |
+| Functions | 83% |
+| Branches | 67% |
+
+Property tests are located alongside their implementation in `__tests__/` directories, named `*.properties.test.ts`.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js ≥ 18
+- React Native environment set up: [reactnative.dev/docs/set-up-your-environment](https://reactnative.dev/docs/set-up-your-environment)
+- Android Studio with an AVD (Android Virtual Device) **or** a physical device with USB debugging enabled
+
+### Install dependencies
+
+```bash
+cd LadyCycle
+npm install
+```
+
+### Run on Android
+
+```bash
+# Terminal 1 — start the Metro bundler
 npm start
 
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+# Terminal 2 — build and launch on Android
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+### Run on iOS (macOS only)
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
+```bash
+# Install CocoaPods (first time only)
 bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
 bundle exec pod install
-```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+# Terminal 1
+npm start
 
-```sh
-# Using npm
+# Terminal 2
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+---
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Internationalization
 
-## Step 3: Modify your app
+The app ships with French and English. The language is auto-detected from the device's system settings on first launch and can be changed at any time in Settings without restarting the app.
 
-Now that you have successfully run the app, let's make changes!
+Wellness advice content (medical tips) is stored in manually written JSON files under `src/infrastructure/i18n/wellness/` — never machine-translated, to ensure medical accuracy.
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+---
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## Contributing
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Run tests before committing: `npm test`
+4. Open a pull request against `main`
 
-## Congratulations! :tada:
+---
 
-You've successfully run and modified your React Native App. :partying_face:
+## License
 
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+MIT

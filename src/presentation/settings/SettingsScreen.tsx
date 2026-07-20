@@ -1,15 +1,8 @@
 /**
- * SettingsScreen — Écran des paramètres de l'application.
+ * SettingsScreen — réglages de l'application.
  *
- * Sections :
- * 1. Mode de suivi (general, trying_to_conceive, natural_contraception)
- * 2. Langue (Français / English) — changement immédiat sans redémarrage
- * 3. Notifications (activation/désactivation, délais 1-7 jours)
- * 4. Rappels de médicaments (liste + ajout/suppression)
- * 5. Lien vers l'écran de sécurité
- *
- * Ce composant ne contient aucune logique métier — tout est délégué à
- * useSettings() qui orchestre CycleRepository et I18nService.
+ * Sections : mode de suivi, langue, notifications, rappels de médicaments,
+ * accès sécurité. Restylé avec le système de design (cartes, icônes, tokens).
  *
  * Exigences : 4.4, 4.5, 6.1, 6.5, 8.1, 8.5, 15.2, 15.3
  */
@@ -17,65 +10,69 @@
 import React, { useState } from 'react'
 import {
   View,
-  Text,
-  ScrollView,
+  StyleSheet,
   TouchableOpacity,
   Switch,
   ActivityIndicator,
-  StyleSheet,
-  SafeAreaView,
   Modal,
 } from 'react-native'
 import { useSettings } from './useSettings'
 import { MedicationReminderForm } from './MedicationReminderForm'
+import { SecurityScreen } from './SecurityScreen'
+import { Screen, AppText, Card, Button, Icon } from '../components'
+import type { IconName } from '../components'
+import { colors, spacing, radii } from '../theme'
+import { rescheduleNotifications } from '../notifications/notificationScheduler'
 import type { TrackingMode, MedicationReminder } from '../../infrastructure/db/CycleRepository'
 import type { SupportedLanguage } from '../../domain/shared/types'
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
+function getModeOptions(fr: boolean): Array<{
+  value: TrackingMode
+  icon: IconName
+  label: string
+  description: string
+}> {
+  return [
+    {
+      value: 'general',
+      icon: 'chart',
+      label: fr ? 'Suivi général' : 'General tracking',
+      description: fr
+        ? 'Informations équilibrées sur toutes les phases du cycle'
+        : 'Balanced information across all cycle phases',
+    },
+    {
+      value: 'trying_to_conceive',
+      icon: 'heart',
+      label: fr ? 'Essai bébé' : 'Trying to conceive',
+      description: fr
+        ? 'Met en évidence la période féconde et les notifications de fertilité'
+        : 'Highlights the fertile window and fertility notifications',
+    },
+    {
+      value: 'natural_contraception',
+      icon: 'shield',
+      label: fr ? 'Contraception naturelle' : 'Natural contraception',
+      description: fr
+        ? 'Affiche les avertissements sur les jours à risque'
+        : 'Shows warnings about high-risk days',
+    },
+  ]
+}
 
-const TRACKING_MODE_OPTIONS: Array<{ value: TrackingMode; label: string; description: string }> = [
-  {
-    value: 'general',
-    label: '📊 Suivi général',
-    description: 'Informations équilibrées sur toutes les phases du cycle',
-  },
-  {
-    value: 'trying_to_conceive',
-    label: '👶 Essai bébé',
-    description: 'Met en évidence la période féconde et les notifications de fertilité',
-  },
-  {
-    value: 'natural_contraception',
-    label: '🛡️ Contraception naturelle',
-    description: 'Affiche les avertissements sur les jours à risque',
-  },
+const LANGUAGE_OPTIONS: Array<{ value: SupportedLanguage; label: string }> = [
+  { value: 'fr', label: 'Français' },
+  { value: 'en', label: 'English' },
 ]
 
-const LANGUAGE_OPTIONS: Array<{ value: SupportedLanguage; label: string; flag: string }> = [
-  { value: 'fr', label: 'Français', flag: '🇫🇷' },
-  { value: 'en', label: 'English', flag: '🇬🇧' },
-]
-
-/** Délais disponibles pour les notifications (1 à 7 jours) */
 const ADVANCE_NOTICE_OPTIONS = [1, 2, 3, 4, 5, 6, 7]
 
-// ─── Composant ────────────────────────────────────────────────────────────────
+const SWITCH_TRACK = { false: colors.border, true: colors.primaryMuted }
 
 interface SettingsScreenProps {
-  /** Callback pour naviguer vers l'écran de sécurité */
   onNavigateToSecurity?: () => void
 }
 
-/**
- * Écran des paramètres.
- *
- * Structure :
- * 1. Mode de suivi
- * 2. Langue
- * 3. Notifications
- * 4. Rappels de médicaments
- * 5. Sécurité (lien)
- */
 export function SettingsScreen({ onNavigateToSecurity }: SettingsScreenProps): React.JSX.Element {
   const {
     preferences,
@@ -91,751 +88,525 @@ export function SettingsScreen({ onNavigateToSecurity }: SettingsScreenProps): R
     refresh,
   } = useSettings()
 
-  // Affichage du formulaire d'ajout de rappel
   const [showReminderForm, setShowReminderForm] = useState(false)
+  const [showSecurity, setShowSecurity] = useState(false)
+  const fr = currentLanguage !== 'en'
 
-  // ── États de chargement / erreur ──────────────────────────────────────────
+  if (showSecurity) {
+    return <SecurityScreen onBack={() => setShowSecurity(false)} />
+  }
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator
-          size="large"
-          color="#E91E63"
-          accessibilityLabel="Chargement des paramètres"
-        />
-        <Text style={styles.loadingText}>Chargement…</Text>
-      </SafeAreaView>
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     )
   }
 
   if (error !== null || preferences === null) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={styles.errorText} accessibilityRole="alert">
-          {error ?? 'Impossible de charger les paramètres'}
-        </Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={refresh}
-          accessibilityLabel="Réessayer le chargement"
-          accessibilityRole="button"
-        >
-          <Text style={styles.retryButtonText}>Réessayer</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <Screen scroll={false} contentStyle={styles.centered}>
+        <AppText variant="body" tone="secondary" center>
+          {error ?? (fr ? 'Impossible de charger les paramètres' : 'Could not load settings')}
+        </AppText>
+        <View style={{ height: spacing.lg }} />
+        <Button label={fr ? 'Réessayer' : 'Retry'} onPress={refresh} fullWidth={false} />
+      </Screen>
     )
   }
 
   const { trackingMode, notificationPreferences, medicationReminders } = preferences
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
-  async function handleTrackingModeChange(mode: TrackingMode): Promise<void> {
-    await setTrackingMode(mode)
-  }
-
-  async function handleLanguageChange(lang: SupportedLanguage): Promise<void> {
-    await setLanguage(lang)
-  }
-
-  async function handleNotificationsToggle(enabled: boolean): Promise<void> {
-    await updateNotificationPreferences({ enabled })
-  }
-
-  async function handleMedicationRemindersToggle(enabled: boolean): Promise<void> {
-    await updateNotificationPreferences({ medicationRemindersEnabled: enabled })
-  }
-
-  /**
-   * Ajoute ou retire un délai de la liste des délais de notification.
-   * Exigence 4.5 : délais configurables de 1 à 7 jours.
-   */
   async function handleAdvanceNoticeToggle(days: number): Promise<void> {
     const current = notificationPreferences.periodAdvanceNoticeDays
     const updated = current.includes(days)
-      ? current.filter(d => d !== days)
-      : [...current, days].sort((a, b) => b - a) // tri décroissant
+      ? current.filter((d) => d !== days)
+      : [...current, days].sort((a, b) => b - a)
     await updateNotificationPreferences({ periodAdvanceNoticeDays: updated })
+    void rescheduleNotifications(false)
   }
 
-  async function handleFertileWindowAdvanceChange(days: number): Promise<void> {
-    await updateNotificationPreferences({ fertileWindowAdvanceNoticeDays: days })
+  async function handleNotificationsEnabled(enabled: boolean): Promise<void> {
+    await updateNotificationPreferences({ enabled })
+    // Demande la permission au moment de l'activation.
+    void rescheduleNotifications(enabled)
   }
-
-  // ── Rendu ─────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.screenTitle} accessibilityRole="header">
-          Paramètres
-        </Text>
+    <Screen>
+      <AppText variant="h1" style={styles.title} accessibilityRole="header">
+        {fr ? 'Réglages' : 'Settings'}
+      </AppText>
 
-        {/* ── Section : Mode de suivi ─────────────────────────────────────── */}
-        {/* Exigences 8.1, 8.5 */}
-        <SectionCard title="Mode de suivi">
-          <View
-            accessible={true}
-            accessibilityLabel="Sélecteur de mode de suivi"
-            accessibilityRole="radiogroup"
-          >
-            {TRACKING_MODE_OPTIONS.map(opt => (
+      {/* Mode de suivi */}
+      <Section title={fr ? 'Mode de suivi' : 'Tracking mode'}>
+        <View accessibilityRole="radiogroup">
+          {getModeOptions(fr).map((opt) => {
+            const selected = trackingMode === opt.value
+            return (
               <TouchableOpacity
                 key={opt.value}
-                style={[
-                  styles.modeOption,
-                  trackingMode === opt.value && styles.modeOptionSelected,
-                ]}
-                onPress={() => handleTrackingModeChange(opt.value)}
+                activeOpacity={0.7}
+                style={[styles.modeOption, selected && styles.modeOptionSelected]}
+                onPress={() => setTrackingMode(opt.value)}
                 accessibilityRole="radio"
-                accessibilityState={{ checked: trackingMode === opt.value }}
+                accessibilityState={{ checked: selected }}
                 accessibilityLabel={`${opt.label}. ${opt.description}`}
               >
-                <View style={styles.modeOptionContent}>
-                  <Text
-                    style={[
-                      styles.modeOptionLabel,
-                      trackingMode === opt.value && styles.modeOptionLabelSelected,
-                    ]}
+                <Icon
+                  name={opt.icon}
+                  size={20}
+                  color={selected ? colors.primaryDark : colors.textSecondary}
+                />
+                <View style={styles.modeText}>
+                  <AppText
+                    variant="bodyStrong"
+                    style={selected ? { color: colors.primaryDark } : undefined}
                   >
                     {opt.label}
-                  </Text>
-                  <Text
-                    style={styles.modeOptionDescription}
-                    accessibilityElementsHidden={true}
-                  >
+                  </AppText>
+                  <AppText variant="caption" tone="secondary" style={styles.modeDesc}>
                     {opt.description}
-                  </Text>
+                  </AppText>
                 </View>
-                {trackingMode === opt.value && (
-                  <Text
-                    style={styles.checkmark}
-                    accessibilityElementsHidden={true}
-                  >
-                    ✓
-                  </Text>
-                )}
+                {selected && <Icon name="check" size={18} color={colors.primary} />}
               </TouchableOpacity>
-            ))}
-          </View>
-        </SectionCard>
+            )
+          })}
+        </View>
+      </Section>
 
-        {/* ── Section : Langue ────────────────────────────────────────────── */}
-        {/* Exigences 15.2, 15.3 : changement immédiat sans redémarrage */}
-        <SectionCard title="Langue">
-          <Text style={styles.sectionNote}>
-            Le changement s'applique immédiatement à toute l'interface.
-          </Text>
-          <View
-            style={styles.languageRow}
-            accessible={true}
-            accessibilityLabel="Sélecteur de langue"
-            accessibilityRole="radiogroup"
-          >
-            {LANGUAGE_OPTIONS.map(opt => (
+      {/* Langue */}
+      <Section title={fr ? 'Langue' : 'Language'}>
+        <AppText variant="caption" tone="tertiary" style={styles.note}>
+          {fr
+            ? "Le changement s'applique immédiatement à toute l'interface."
+            : 'The change applies immediately across the whole interface.'}
+        </AppText>
+        <View style={styles.langRow}>
+          {LANGUAGE_OPTIONS.map((opt) => {
+            const selected = currentLanguage === opt.value
+            return (
               <TouchableOpacity
                 key={opt.value}
-                style={[
-                  styles.languageButton,
-                  currentLanguage === opt.value && styles.languageButtonSelected,
-                ]}
-                onPress={() => handleLanguageChange(opt.value)}
+                activeOpacity={0.7}
+                style={[styles.langButton, selected && styles.langButtonSelected]}
+                onPress={() => setLanguage(opt.value)}
                 accessibilityRole="radio"
-                accessibilityState={{ checked: currentLanguage === opt.value }}
-                accessibilityLabel={`${opt.label}${currentLanguage === opt.value ? ', sélectionné' : ''}`}
+                accessibilityState={{ checked: selected }}
+                accessibilityLabel={opt.label}
               >
-                <Text style={styles.languageFlag} accessibilityElementsHidden={true}>
-                  {opt.flag}
-                </Text>
-                <Text
-                  style={[
-                    styles.languageLabel,
-                    currentLanguage === opt.value && styles.languageLabelSelected,
-                  ]}
+                <AppText
+                  variant="bodyStrong"
+                  style={selected ? { color: colors.primaryDark } : { color: colors.textSecondary }}
                 >
                   {opt.label}
-                </Text>
+                </AppText>
               </TouchableOpacity>
+            )
+          })}
+        </View>
+      </Section>
+
+      {/* Notifications */}
+      <Section title="Notifications">
+        <Row label={fr ? 'Activer les notifications' : 'Enable notifications'}>
+          <Switch
+            value={notificationPreferences.enabled}
+            onValueChange={handleNotificationsEnabled}
+            trackColor={SWITCH_TRACK}
+            thumbColor={notificationPreferences.enabled ? colors.primary : colors.textTertiary}
+          />
+        </Row>
+
+        {notificationPreferences.enabled && (
+          <>
+            <View style={styles.subSection}>
+              <AppText variant="label" tone="secondary">
+                {fr ? 'Rappels avant les règles' : 'Reminders before your period'}
+              </AppText>
+              <AppText variant="tiny" tone="tertiary" style={styles.subNote}>
+                {fr ? 'Sélectionnez les délais souhaités (1 à 7 jours)' : 'Choose your preferred lead times (1 to 7 days)'}
+              </AppText>
+              <View style={styles.chipsGrid}>
+                {ADVANCE_NOTICE_OPTIONS.map((days) => {
+                  const isSelected =
+                    notificationPreferences.periodAdvanceNoticeDays.includes(days)
+                  return (
+                    <DayChip
+                      key={days}
+                      label={`${days}j`}
+                      selected={isSelected}
+                      onPress={() => handleAdvanceNoticeToggle(days)}
+                      accessibilityLabel={fr ? `${days} jour${days > 1 ? 's' : ''} avant` : `${days} day${days > 1 ? 's' : ''} before`}
+                    />
+                  )
+                })}
+              </View>
+            </View>
+
+            <View style={styles.subSection}>
+              <AppText variant="label" tone="secondary">
+                {fr ? 'Rappel avant la période féconde' : 'Reminder before the fertile window'}
+              </AppText>
+              <View style={styles.chipsGrid}>
+                {[1, 2, 3].map((days) => {
+                  const isSelected =
+                    notificationPreferences.fertileWindowAdvanceNoticeDays === days
+                  return (
+                    <DayChip
+                      key={days}
+                      label={`${days}j`}
+                      selected={isSelected}
+                      onPress={async () => {
+                        await updateNotificationPreferences({ fertileWindowAdvanceNoticeDays: days })
+                        void rescheduleNotifications(false)
+                      }}
+                      accessibilityLabel={fr ? `${days} jour${days > 1 ? 's' : ''} avant` : `${days} day${days > 1 ? 's' : ''} before`}
+                    />
+                  )
+                })}
+              </View>
+            </View>
+          </>
+        )}
+      </Section>
+
+      {/* Rappels de médicaments */}
+      <Section title={fr ? 'Rappels de médicaments' : 'Medication reminders'}>
+        <Row label={fr ? 'Activer les rappels' : 'Enable reminders'}>
+          <Switch
+            value={notificationPreferences.medicationRemindersEnabled}
+            onValueChange={(enabled) =>
+              updateNotificationPreferences({ medicationRemindersEnabled: enabled })
+            }
+            trackColor={SWITCH_TRACK}
+            thumbColor={
+              notificationPreferences.medicationRemindersEnabled
+                ? colors.primary
+                : colors.textTertiary
+            }
+          />
+        </Row>
+
+        {medicationReminders.length > 0 && (
+          <View style={styles.reminderList}>
+            {medicationReminders.map((reminder) => (
+              <MedicationReminderRow
+                key={reminder.id}
+                reminder={reminder}
+                fr={fr}
+                onToggle={(enabled) => toggleMedicationReminder(reminder.id, enabled)}
+                onRemove={() => removeMedicationReminder(reminder.id)}
+              />
             ))}
           </View>
-        </SectionCard>
-
-        {/* ── Section : Notifications ─────────────────────────────────────── */}
-        {/* Exigences 4.4, 4.5 */}
-        <SectionCard title="Notifications">
-          {/* Activation globale */}
-          <SettingsRow
-            label="Activer les notifications"
-            accessibilityLabel={`Notifications ${notificationPreferences.enabled ? 'activées' : 'désactivées'}`}
-          >
-            <Switch
-              value={notificationPreferences.enabled}
-              onValueChange={handleNotificationsToggle}
-              trackColor={{ false: '#E0E0E0', true: '#F48FB1' }}
-              thumbColor={notificationPreferences.enabled ? '#E91E63' : '#BDBDBD'}
-              accessibilityLabel="Activer ou désactiver toutes les notifications"
-              accessibilityRole="switch"
-              accessibilityState={{ checked: notificationPreferences.enabled }}
-            />
-          </SettingsRow>
-
-          {notificationPreferences.enabled && (
-            <>
-              {/* Délais pour les règles */}
-              <View style={styles.subSection}>
-                <Text style={styles.subSectionTitle}>
-                  Rappels avant les règles
-                </Text>
-                <Text style={styles.subSectionNote}>
-                  Sélectionnez les délais souhaités (1 à 7 jours)
-                </Text>
-                <View
-                  style={styles.daysGrid}
-                  accessible={true}
-                  accessibilityLabel="Délais de notification avant les règles"
-                >
-                  {ADVANCE_NOTICE_OPTIONS.map(days => {
-                    const isSelected = notificationPreferences.periodAdvanceNoticeDays.includes(days)
-                    return (
-                      <TouchableOpacity
-                        key={days}
-                        style={[styles.dayChip, isSelected && styles.dayChipSelected]}
-                        onPress={() => handleAdvanceNoticeToggle(days)}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: isSelected }}
-                        accessibilityLabel={`${days} jour${days > 1 ? 's' : ''} avant${isSelected ? ', sélectionné' : ''}`}
-                      >
-                        <Text
-                          style={[styles.dayChipText, isSelected && styles.dayChipTextSelected]}
-                        >
-                          {days}j
-                        </Text>
-                      </TouchableOpacity>
-                    )
-                  })}
-                </View>
-              </View>
-
-              {/* Délai pour la période féconde */}
-              <View style={styles.subSection}>
-                <Text style={styles.subSectionTitle}>
-                  Rappel avant la période féconde
-                </Text>
-                <View
-                  style={styles.daysGrid}
-                  accessible={true}
-                  accessibilityLabel="Délai de notification avant la période féconde"
-                >
-                  {[1, 2, 3].map(days => {
-                    const isSelected =
-                      notificationPreferences.fertileWindowAdvanceNoticeDays === days
-                    return (
-                      <TouchableOpacity
-                        key={days}
-                        style={[styles.dayChip, isSelected && styles.dayChipSelected]}
-                        onPress={() => handleFertileWindowAdvanceChange(days)}
-                        accessibilityRole="radio"
-                        accessibilityState={{ checked: isSelected }}
-                        accessibilityLabel={`${days} jour${days > 1 ? 's' : ''} avant${isSelected ? ', sélectionné' : ''}`}
-                      >
-                        <Text
-                          style={[styles.dayChipText, isSelected && styles.dayChipTextSelected]}
-                        >
-                          {days}j
-                        </Text>
-                      </TouchableOpacity>
-                    )
-                  })}
-                </View>
-              </View>
-            </>
-          )}
-        </SectionCard>
-
-        {/* ── Section : Rappels de médicaments ────────────────────────────── */}
-        {/* Exigences 6.1, 6.5 */}
-        <SectionCard title="Rappels de médicaments">
-          <SettingsRow
-            label="Activer les rappels"
-            accessibilityLabel={`Rappels de médicaments ${notificationPreferences.medicationRemindersEnabled ? 'activés' : 'désactivés'}`}
-          >
-            <Switch
-              value={notificationPreferences.medicationRemindersEnabled}
-              onValueChange={handleMedicationRemindersToggle}
-              trackColor={{ false: '#E0E0E0', true: '#F48FB1' }}
-              thumbColor={
-                notificationPreferences.medicationRemindersEnabled ? '#E91E63' : '#BDBDBD'
-              }
-              accessibilityLabel="Activer ou désactiver les rappels de médicaments"
-              accessibilityRole="switch"
-              accessibilityState={{ checked: notificationPreferences.medicationRemindersEnabled }}
-            />
-          </SettingsRow>
-
-          {/* Liste des rappels existants */}
-          {medicationReminders.length > 0 && (
-            <View style={styles.reminderList}>
-              {medicationReminders.map(reminder => (
-                <MedicationReminderRow
-                  key={reminder.id}
-                  reminder={reminder}
-                  onToggle={enabled => toggleMedicationReminder(reminder.id, enabled)}
-                  onRemove={() => removeMedicationReminder(reminder.id)}
-                />
-              ))}
-            </View>
-          )}
-
-          {/* Bouton d'ajout */}
-          <TouchableOpacity
-            style={styles.addReminderButton}
-            onPress={() => setShowReminderForm(true)}
-            accessibilityLabel="Ajouter un rappel de médicament"
-            accessibilityRole="button"
-          >
-            <Text style={styles.addReminderButtonText}>+ Ajouter un rappel</Text>
-          </TouchableOpacity>
-        </SectionCard>
-
-        {/* ── Section : Sécurité ──────────────────────────────────────────── */}
-        {onNavigateToSecurity !== undefined && (
-          <SectionCard title="Sécurité et confidentialité">
-            <TouchableOpacity
-              style={styles.navigationRow}
-              onPress={onNavigateToSecurity}
-              accessibilityLabel="Accéder aux paramètres de sécurité"
-              accessibilityRole="button"
-              accessibilityHint="Ouvre l'écran de configuration de l'authentification et du Kit de Récupération"
-            >
-              <View style={styles.navigationRowContent}>
-                <Text style={styles.navigationRowIcon}>🔒</Text>
-                <View style={styles.navigationRowText}>
-                  <Text style={styles.navigationRowLabel}>
-                    Authentification et chiffrement
-                  </Text>
-                  <Text style={styles.navigationRowDescription}>
-                    PIN, biométrie, Kit de Récupération, sauvegarde cloud
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.navigationRowChevron} accessibilityElementsHidden={true}>
-                ›
-              </Text>
-            </TouchableOpacity>
-          </SectionCard>
         )}
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={styles.addReminder}
+          onPress={() => setShowReminderForm(true)}
+          accessibilityRole="button"
+          accessibilityLabel={fr ? 'Ajouter un rappel de médicament' : 'Add a medication reminder'}
+        >
+          <Icon name="plus" size={18} color={colors.primaryDark} />
+          <AppText variant="bodyStrong" style={{ color: colors.primaryDark }}>
+            {fr ? 'Ajouter un rappel' : 'Add a reminder'}
+          </AppText>
+        </TouchableOpacity>
+      </Section>
 
-      {/* ── Modal : Formulaire d'ajout de rappel ────────────────────────── */}
+      {/* Confidentialité */}
+      <Section title={fr ? 'Confidentialité' : 'Privacy'}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.navRow}
+            onPress={onNavigateToSecurity ?? (() => setShowSecurity(true))}
+            accessibilityRole="button"
+            accessibilityLabel={fr ? 'Voir comment mes données sont gérées' : 'See how my data is handled'}
+          >
+            <Icon name="lock" size={22} color={colors.primaryDark} />
+            <View style={styles.navText}>
+              <AppText variant="bodyStrong">
+                {fr ? 'Comment tes données sont gérées' : 'How your data is handled'}
+              </AppText>
+              <AppText variant="caption" tone="secondary">
+                {fr ? 'Sur ton téléphone, sans compte' : 'On your phone, no account'}
+              </AppText>
+            </View>
+            <Icon name="chevronRight" size={20} color={colors.textTertiary} />
+          </TouchableOpacity>
+      </Section>
+
+      <View style={styles.privacyFooter}>
+        <Icon name="lock" size={14} color={colors.success} />
+        <AppText variant="caption" style={{ color: colors.phase.follicular.text }}>
+          {fr ? 'Tes données restent sur ton appareil.' : 'Your data stays on your device.'}
+        </AppText>
+      </View>
+
       <Modal
         visible={showReminderForm}
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setShowReminderForm(false)}
-        accessibilityViewIsModal={true}
       >
         <MedicationReminderForm
-          onSave={async reminder => {
+          fr={fr}
+          onSave={async (reminder) => {
             await addMedicationReminder(reminder)
             setShowReminderForm(false)
           }}
           onCancel={() => setShowReminderForm(false)}
         />
       </Modal>
-    </SafeAreaView>
+    </Screen>
   )
 }
 
-// ─── Composants auxiliaires ───────────────────────────────────────────────────
+// ─── Sous-composants ──────────────────────────────────────────────────────────
 
-interface SectionCardProps {
-  title: string
-  children: React.ReactNode
-}
-
-function SectionCard({ title, children }: SectionCardProps): React.JSX.Element {
+function Section({ title, children }: { title: string; children: React.ReactNode }): React.JSX.Element {
   return (
-    <View style={sectionStyles.card}>
-      <Text style={sectionStyles.title} accessibilityRole="header">
+    <Card style={styles.section}>
+      <AppText variant="h3" style={styles.sectionTitle} accessibilityRole="header">
         {title}
-      </Text>
+      </AppText>
       {children}
-    </View>
+    </Card>
   )
 }
 
-const sectionStyles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 14,
-  },
-})
-
-interface SettingsRowProps {
-  label: string
-  accessibilityLabel?: string
-  children: React.ReactNode
-}
-
-function SettingsRow({ label, accessibilityLabel, children }: SettingsRowProps): React.JSX.Element {
+function Row({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
   return (
-    <View
-      style={rowStyles.row}
-      accessible={true}
-      accessibilityLabel={accessibilityLabel ?? label}
-    >
-      <Text style={rowStyles.label}>{label}</Text>
+    <View style={styles.row} accessible accessibilityLabel={label}>
+      <AppText variant="body" style={styles.rowLabel}>
+        {label}
+      </AppText>
       {children}
     </View>
   )
 }
 
-const rowStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 14,
-    color: '#424242',
-    flex: 1,
-    marginRight: 12,
-  },
-})
-
-interface MedicationReminderRowProps {
-  reminder: MedicationReminder
-  onToggle: (enabled: boolean) => void
-  onRemove: () => void
+function DayChip({
+  label,
+  selected,
+  onPress,
+  accessibilityLabel,
+}: {
+  label: string
+  selected: boolean
+  onPress: () => void
+  accessibilityLabel: string
+}): React.JSX.Element {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      style={[styles.chip, selected && styles.chipSelected]}
+      onPress={onPress}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={accessibilityLabel}
+    >
+      <AppText
+        variant="caption"
+        style={selected ? { color: colors.primaryDark, fontWeight: '700' } : { color: colors.textSecondary }}
+      >
+        {label}
+      </AppText>
+    </TouchableOpacity>
+  )
 }
 
 function MedicationReminderRow({
   reminder,
   onToggle,
   onRemove,
-}: MedicationReminderRowProps): React.JSX.Element {
-  const frequencyLabels: Record<MedicationReminder['frequency'], string> = {
-    once_per_cycle: 'Une fois par cycle',
-    daily: 'Quotidien',
-    custom: 'Personnalisé',
-  }
+  fr,
+}: {
+  reminder: MedicationReminder
+  onToggle: (enabled: boolean) => void
+  onRemove: () => void
+  fr: boolean
+}): React.JSX.Element {
+  const frequencyLabels: Record<MedicationReminder['frequency'], string> = fr
+    ? { once_per_cycle: 'Une fois par cycle', daily: 'Quotidien', custom: 'Personnalisé' }
+    : { once_per_cycle: 'Once per cycle', daily: 'Daily', custom: 'Custom' }
 
   return (
-    <View
-      style={reminderRowStyles.row}
-      accessible={true}
-      accessibilityLabel={`Rappel : ${reminder.name}, ${frequencyLabels[reminder.frequency]}, ${reminder.timingBeforePeriod} jour${reminder.timingBeforePeriod > 1 ? 's' : ''} avant les règles à ${reminder.timeOfDay}`}
-    >
-      <View style={reminderRowStyles.content}>
-        <Text style={reminderRowStyles.name}>{reminder.name}</Text>
-        <Text style={reminderRowStyles.details} accessibilityElementsHidden={true}>
-          {frequencyLabels[reminder.frequency]} · {reminder.timingBeforePeriod}j avant · {reminder.timeOfDay}
-        </Text>
+    <View style={styles.reminderRow}>
+      <View style={styles.reminderContent}>
+        <AppText variant="bodyStrong">{reminder.name}</AppText>
+        <AppText variant="caption" tone="tertiary">
+          {frequencyLabels[reminder.frequency]} · {reminder.timingBeforePeriod}{fr ? 'j avant' : 'd before'} · {reminder.timeOfDay}
+        </AppText>
       </View>
       <Switch
         value={reminder.enabled}
         onValueChange={onToggle}
-        trackColor={{ false: '#E0E0E0', true: '#F48FB1' }}
-        thumbColor={reminder.enabled ? '#E91E63' : '#BDBDBD'}
-        accessibilityLabel={`${reminder.enabled ? 'Désactiver' : 'Activer'} le rappel ${reminder.name}`}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: reminder.enabled }}
+        trackColor={SWITCH_TRACK}
+        thumbColor={reminder.enabled ? colors.primary : colors.textTertiary}
       />
       <TouchableOpacity
-        style={reminderRowStyles.removeButton}
+        style={styles.removeButton}
         onPress={onRemove}
-        accessibilityLabel={`Supprimer le rappel ${reminder.name}`}
         accessibilityRole="button"
+        accessibilityLabel={fr ? `Supprimer le rappel ${reminder.name}` : `Delete reminder ${reminder.name}`}
       >
-        <Text style={reminderRowStyles.removeButtonText}>✕</Text>
+        <Icon name="trash" size={16} color={colors.danger} />
       </TouchableOpacity>
     </View>
   )
 }
 
-const reminderRowStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
-    gap: 8,
-  },
-  content: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#212121',
-    marginBottom: 2,
-  },
-  details: {
-    fontSize: 12,
-    color: '#9E9E9E',
-  },
-  removeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FFEBEE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeButtonText: {
-    fontSize: 12,
-    color: '#EF5350',
-    fontWeight: '700',
-  },
-})
-
-// ─── Styles principaux ────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FAFAFA',
-    padding: 24,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    color: '#757575',
+  title: {
+    marginBottom: spacing.lg,
   },
-  errorText: {
-    fontSize: 15,
-    color: '#EF5350',
-    textAlign: 'center',
-    marginBottom: 16,
+  section: {
+    marginBottom: spacing.lg,
   },
-  retryButton: {
-    backgroundColor: '#E91E63',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+  sectionTitle: {
+    marginBottom: spacing.md,
   },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 16,
-  },
-  sectionNote: {
-    fontSize: 12,
-    color: '#9E9E9E',
-    marginBottom: 12,
+  note: {
+    marginBottom: spacing.md,
     fontStyle: 'italic',
   },
-  // ── Mode de suivi ───────────────────────────────────────────────────────
   modeOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    marginBottom: 8,
-    backgroundColor: '#FAFAFA',
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.background,
   },
   modeOptionSelected: {
-    borderColor: '#E91E63',
-    backgroundColor: '#FCE4EC',
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
-  modeOptionContent: {
+  modeText: {
     flex: 1,
   },
-  modeOptionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#424242',
-    marginBottom: 2,
-  },
-  modeOptionLabelSelected: {
-    color: '#880E4F',
-  },
-  modeOptionDescription: {
-    fontSize: 12,
-    color: '#9E9E9E',
+  modeDesc: {
+    marginTop: 2,
     lineHeight: 16,
   },
-  checkmark: {
-    fontSize: 16,
-    color: '#E91E63',
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-  // ── Langue ──────────────────────────────────────────────────────────────
-  languageRow: {
+  langRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
-  languageButton: {
+  langButton: {
     flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  langButtonSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.xs,
   },
-  languageButtonSelected: {
-    borderColor: '#E91E63',
-    backgroundColor: '#FCE4EC',
+  rowLabel: {
+    flex: 1,
+    marginRight: spacing.md,
   },
-  languageFlag: {
-    fontSize: 20,
-  },
-  languageLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#424242',
-  },
-  languageLabelSelected: {
-    color: '#880E4F',
-  },
-  // ── Notifications ────────────────────────────────────────────────────────
   subSection: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
+    borderTopColor: colors.border,
   },
-  subSectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#616161',
-    marginBottom: 4,
+  subNote: {
+    marginTop: 2,
+    marginBottom: spacing.sm,
   },
-  subSectionNote: {
-    fontSize: 11,
-    color: '#BDBDBD',
-    marginBottom: 10,
-  },
-  daysGrid: {
+  chipsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
-  dayChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
+    borderColor: colors.border,
+    backgroundColor: colors.background,
     minWidth: 44,
     alignItems: 'center',
   },
-  dayChipSelected: {
-    borderColor: '#E91E63',
-    backgroundColor: '#FCE4EC',
+  chipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
-  dayChipText: {
-    fontSize: 13,
-    color: '#616161',
-    fontWeight: '500',
-  },
-  dayChipTextSelected: {
-    color: '#880E4F',
-    fontWeight: '700',
-  },
-  // ── Rappels de médicaments ───────────────────────────────────────────────
   reminderList: {
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
-  addReminderButton: {
-    paddingVertical: 12,
-    borderRadius: 8,
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.sm,
+  },
+  reminderContent: {
+    flex: 1,
+  },
+  removeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: radii.pill,
+    backgroundColor: colors.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addReminder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#E91E63',
+    borderColor: colors.primaryMuted,
     borderStyle: 'dashed',
-    alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
-  addReminderButtonText: {
-    fontSize: 14,
-    color: '#E91E63',
-    fontWeight: '600',
-  },
-  // ── Navigation vers sécurité ─────────────────────────────────────────────
-  navigationRow: {
+  navRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
+    gap: spacing.md,
   },
-  navigationRowContent: {
+  navText: {
     flex: 1,
+  },
+  privacyFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  navigationRowIcon: {
-    fontSize: 22,
-  },
-  navigationRowText: {
-    flex: 1,
-  },
-  navigationRowLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#212121',
-    marginBottom: 2,
-  },
-  navigationRowDescription: {
-    fontSize: 12,
-    color: '#9E9E9E',
-  },
-  navigationRowChevron: {
-    fontSize: 22,
-    color: '#BDBDBD',
-    fontWeight: '300',
-  },
-  bottomSpacer: {
-    height: 24,
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
   },
 })

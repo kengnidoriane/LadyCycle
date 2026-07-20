@@ -17,8 +17,9 @@ import { useState, useEffect, useCallback } from 'react'
 import type { PredictionResult } from '../../application/PredictNextCycleUseCase'
 import { PredictNextCycleUseCase } from '../../application/PredictNextCycleUseCase'
 import type { Cycle } from '../../infrastructure/db/CycleRepository'
-import { InMemoryCycleRepository } from '../../infrastructure/db/CycleRepository'
+import { PersistentCycleRepository } from '../../infrastructure/db/PersistentCycleRepository'
 import type { CalendarDate } from '../../domain/shared/types'
+import { colors } from '../theme'
 
 // ─── Types exposés par le hook ────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ export interface CalendarState {
 // ─── Repository partagé (singleton pour l'app) ────────────────────────────────
 // En production, ce serait NativeCycleRepository injecté via un contexte React.
 // Pour l'instant, InMemoryCycleRepository permet de tester sans appareil physique.
-const sharedRepository = new InMemoryCycleRepository()
+const sharedRepository = new PersistentCycleRepository()
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -105,15 +106,15 @@ export function useCalendar(): CalendarState {
 export function getPhaseColor(phase: string): string {
   switch (phase) {
     case 'menstrual':
-      return '#E57373'   // Rouge doux — menstruation
+      return colors.phase.menstrual.main
     case 'follicular':
-      return '#81C784'   // Vert doux — phase folliculaire
+      return colors.phase.follicular.main
     case 'ovulation':
-      return '#FFB74D'   // Orange doux — ovulation / période féconde
+      return colors.phase.ovulation.main
     case 'luteal':
-      return '#9575CD'   // Violet doux — phase lutéale
+      return colors.phase.luteal.main
     default:
-      return '#BDBDBD'   // Gris — inconnu
+      return colors.borderStrong
   }
 }
 

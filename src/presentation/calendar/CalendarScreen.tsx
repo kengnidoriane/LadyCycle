@@ -1,61 +1,28 @@
 /**
- * CalendarScreen — Écran principal du calendrier du cycle menstruel.
+ * CalendarScreen — vue calendrier mensuelle du cycle.
  *
- * Affiche :
- * - La grille calendrier mensuelle avec les phases colorées
- * - La zone de flou visuelle pour l'ovulation prédite (isBlurred: true)
- * - L'indicateur de confiance avec explication si level === 'low'
- * - Un bouton d'accès rapide pour enregistrer les règles (≤ 3 interactions)
- * - La phase actuelle du cycle
- *
- * Ce composant ne contient aucune logique métier — tout est délégué à
- * useCalendar() qui orchestre PredictNextCycleUseCase.
+ * Onglet secondaire (l'accueil reste l'écran phare). Affiche la grille mensuelle
+ * colorée par phase, la phase courante et les prédictions détaillées.
  *
  * Exigences : 12.1, 12.2, 12.3, 12.4, 2.6
  */
 
 import React, { useState } from 'react'
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  SafeAreaView,
-} from 'react-native'
+import { View, StyleSheet, ActivityIndicator, TouchableOpacity, Modal } from 'react-native'
 import { useCalendar } from './useCalendar'
 import { CycleCalendarGrid } from './CycleCalendarGrid'
 import { OvulationBlurZone } from './OvulationBlurZone'
 import { RecordPeriodForm } from './RecordPeriodForm'
+import { useI18n } from '../i18n/I18nContext'
+import { Screen, AppText, Card, Button, Icon, Badge } from '../components'
+import { colors, spacing, radii } from '../theme'
+import { PHASE_META, confidenceMeta } from '../shared/phaseMeta'
 import type { CalendarDate } from '../../domain/shared/types'
 
-// ─── Labels de phase ──────────────────────────────────────────────────────────
-
-const PHASE_LABELS: Record<string, string> = {
-  menstrual: '🔴 Phase menstruelle',
-  follicular: '🟢 Phase folliculaire',
-  ovulation: '🟠 Période féconde',
-  luteal: '🟣 Phase lutéale',
-}
-
-const PHASE_DESCRIPTIONS: Record<string, string> = {
-  menstrual: 'Vos règles sont en cours. Prenez soin de vous.',
-  follicular: 'Votre énergie remonte. Bonne période pour l\'activité physique.',
-  ovulation: 'Période de fertilité maximale. Consultez vos conseils personnalisés.',
-  luteal: 'Phase prémenstruelle. Gérez le stress et l\'alimentation.',
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Formate une CalendarDate en date lisible.
- * Ex : "2024-01-29" → "29 jan. 2024"
- */
-function formatDate(date: string): string {
+function formatDate(date: string, lang: string): string {
   const [year, month, day] = date.split('-').map(Number)
   const d = new Date(Date.UTC(year, month - 1, day))
-  return d.toLocaleDateString('fr-FR', {
+  return d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -63,53 +30,34 @@ function formatDate(date: string): string {
   })
 }
 
-// ─── Composant ────────────────────────────────────────────────────────────────
-
-/**
- * Écran principal du calendrier.
- *
- * Structure :
- * 1. En-tête : phase actuelle + description
- * 2. Grille calendrier mensuelle (navigation mois précédent/suivant)
- * 3. Prédictions : prochaines règles + ovulation avec zone de flou
- * 4. Bouton d'action rapide : "Enregistrer mes règles" (≤ 3 interactions)
- * 5. Formulaire d'enregistrement (modal inline)
- */
 export function CalendarScreen(): React.JSX.Element {
   const { predictions, cycles, isLoading, error, refresh } = useCalendar()
+  const { t, currentLanguage } = useI18n()
+  const lang = currentLanguage === 'en' ? 'en' : 'fr'
 
-  // Navigation mensuelle
   const now = new Date()
   const [displayYear, setDisplayYear] = useState(now.getUTCFullYear())
   const [displayMonth, setDisplayMonth] = useState(now.getUTCMonth() + 1)
-
-  // Affichage du formulaire d'enregistrement
   const [showRecordForm, setShowRecordForm] = useState(false)
-
-  // Jour sélectionné (pour pré-remplir le formulaire)
   const [selectedDate, setSelectedDate] = useState<CalendarDate | null>(null)
-
-  // ── Navigation mensuelle ──────────────────────────────────────────────────
 
   function goToPreviousMonth(): void {
     if (displayMonth === 1) {
       setDisplayMonth(12)
-      setDisplayYear(y => y - 1)
+      setDisplayYear((y) => y - 1)
     } else {
-      setDisplayMonth(m => m - 1)
+      setDisplayMonth((m) => m - 1)
     }
   }
 
   function goToNextMonth(): void {
     if (displayMonth === 12) {
       setDisplayMonth(1)
-      setDisplayYear(y => y + 1)
+      setDisplayYear((y) => y + 1)
     } else {
-      setDisplayMonth(m => m + 1)
+      setDisplayMonth((m) => m + 1)
     }
   }
-
-  // ── Gestion du formulaire ─────────────────────────────────────────────────
 
   function handleDayPress(date: CalendarDate): void {
     setSelectedDate(date)
@@ -122,330 +70,214 @@ export function CalendarScreen(): React.JSX.Element {
     refresh()
   }
 
-  function handleRecordCancel(): void {
-    setShowRecordForm(false)
-    setSelectedDate(null)
-  }
-
-  // ── Rendu ─────────────────────────────────────────────────────────────────
-
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator
-          size="large"
-          color="#E91E63"
-          accessibilityLabel="Chargement du calendrier"
-        />
-        <Text style={styles.loadingText}>Chargement…</Text>
-      </SafeAreaView>
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     )
   }
 
   if (error !== null) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={styles.errorText} accessibilityRole="alert">
+      <Screen scroll={false} contentStyle={styles.centered}>
+        <AppText variant="body" tone="secondary" center>
           {error}
-        </Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={refresh}
-          accessibilityLabel="Réessayer le chargement"
-          accessibilityRole="button"
-        >
-          <Text style={styles.retryButtonText}>Réessayer</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+        </AppText>
+        <View style={{ height: spacing.lg }} />
+        <Button label={t('common.retry')} onPress={refresh} fullWidth={false} />
+      </Screen>
     )
   }
 
   const currentPhase = predictions?.currentPhase ?? null
-  const phaseLabel = currentPhase ? PHASE_LABELS[currentPhase] : null
-  const phaseDescription = currentPhase ? PHASE_DESCRIPTIONS[currentPhase] : null
+  const phaseMeta = currentPhase ? PHASE_META[currentPhase] : null
+  const hasNoCycles = cycles.length === 0
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Phase actuelle ─────────────────────────────────────────────── */}
-        {phaseLabel !== null && (
-          <View
-            style={styles.phaseCard}
-            accessible={true}
-            accessibilityLabel={`Phase actuelle : ${phaseLabel}. ${phaseDescription}`}
-            accessibilityRole="text"
-          >
-            <Text style={styles.phaseLabel}>{phaseLabel}</Text>
-            {phaseDescription !== null && (
-              <Text style={styles.phaseDescription} accessibilityElementsHidden={true}>
-                {phaseDescription}
-              </Text>
-            )}
+    <Screen>
+      <AppText variant="h1" style={styles.title} accessibilityRole="header">
+        {t('calendar.title')}
+      </AppText>
+
+      {/* Phase courante */}
+      {!hasNoCycles && phaseMeta && currentPhase && (
+        <Card tint={phaseMeta.soft} accent={phaseMeta.main} style={styles.phaseCard}>
+          <View style={styles.phaseHeader}>
+            <Icon name={phaseMeta.icon} size={18} color={phaseMeta.text} />
+            <AppText variant="bodyStrong" style={{ color: phaseMeta.text }}>
+              {t(phaseMeta.labelKey)}
+            </AppText>
           </View>
-        )}
+          <AppText variant="caption" style={{ color: phaseMeta.text, opacity: 0.9 }}>
+            {t(phaseMeta.descKey)}
+          </AppText>
+        </Card>
+      )}
 
-        {/* ── Grille calendrier ──────────────────────────────────────────── */}
-        <View style={styles.calendarContainer}>
-          {/* Navigation mois */}
-          <View style={styles.monthNav}>
-            <TouchableOpacity
-              onPress={goToPreviousMonth}
-              style={styles.navButton}
-              accessibilityLabel="Mois précédent"
-              accessibilityRole="button"
-            >
-              <Text style={styles.navButtonText}>‹</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={goToNextMonth}
-              style={styles.navButton}
-              accessibilityLabel="Mois suivant"
-              accessibilityRole="button"
-            >
-              <Text style={styles.navButtonText}>›</Text>
-            </TouchableOpacity>
-          </View>
-
-          <CycleCalendarGrid
-            year={displayYear}
-            month={displayMonth}
-            cycles={cycles}
-            predictions={predictions}
-            onDayPress={handleDayPress}
-          />
-        </View>
-
-        {/* ── Prédictions ────────────────────────────────────────────────── */}
-        {predictions !== null && (
-          <View style={styles.predictionsSection}>
-            <Text style={styles.sectionTitle}>Prédictions</Text>
-
-            {/* Prochaines règles */}
-            <View
-              style={styles.nextPeriodCard}
-              accessible={true}
-              accessibilityLabel={
-                `Prochaines règles prévues le ${formatDate(predictions.nextPeriod.value.startDate)}`
-              }
-              accessibilityRole="text"
-            >
-              <Text style={styles.nextPeriodTitle}>🔴 Prochaines règles</Text>
-              <Text style={styles.nextPeriodDate}>
-                {formatDate(predictions.nextPeriod.value.startDate)}
-              </Text>
-              <ConfidenceInline confidence={predictions.nextPeriod.confidence} />
-            </View>
-
-            {/* Ovulation avec zone de flou */}
-            <OvulationBlurZone
-              ovulation={predictions.ovulation.value}
-              confidence={predictions.ovulation.confidence}
-            />
-          </View>
-        )}
-
-        {/* ── Bouton d'action rapide ─────────────────────────────────────── */}
-        {/* Exigence 12.2 : saisie en maximum 3 interactions */}
+      {/* Navigation mensuelle */}
+      <View style={styles.monthNav}>
         <TouchableOpacity
-          style={styles.recordButton}
-          onPress={() => setShowRecordForm(true)}
-          accessibilityLabel="Enregistrer mes règles"
+          onPress={goToPreviousMonth}
+          style={styles.navButton}
           accessibilityRole="button"
-          accessibilityHint="Ouvre le formulaire d'enregistrement des règles"
+          accessibilityLabel={lang === 'fr' ? 'Mois précédent' : 'Previous month'}
         >
-          <Text style={styles.recordButtonText}>+ Enregistrer mes règles</Text>
+          <Icon name="chevronLeft" size={22} color={colors.textSecondary} />
         </TouchableOpacity>
+        <TouchableOpacity
+          onPress={goToNextMonth}
+          style={styles.navButton}
+          accessibilityRole="button"
+          accessibilityLabel={lang === 'fr' ? 'Mois suivant' : 'Next month'}
+        >
+          <Icon name="chevronRight" size={22} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
 
-        {/* Espace en bas pour le scroll */}
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+      <CycleCalendarGrid
+        year={displayYear}
+        month={displayMonth}
+        cycles={cycles}
+        predictions={predictions}
+        onDayPress={handleDayPress}
+      />
 
-      {/* ── Formulaire d'enregistrement (inline modal) ─────────────────── */}
-      {showRecordForm && (
-        <View style={styles.formOverlay}>
-          <RecordPeriodForm
-            initialStartDate={selectedDate}
-            onSuccess={handleRecordSuccess}
-            onCancel={handleRecordCancel}
+      {/* Prédictions */}
+      {!hasNoCycles && predictions !== null && (
+        <View style={styles.predictions}>
+          <AppText variant="h3" style={styles.sectionTitle}>
+            {lang === 'fr' ? 'Prédictions' : 'Predictions'}
+          </AppText>
+
+          <Card
+            tint={colors.phase.menstrual.soft}
+            accent={colors.phase.menstrual.main}
+            style={styles.predCard}
+          >
+            <View style={styles.phaseHeader}>
+              <Icon name="droplet" size={18} color={colors.phase.menstrual.text} />
+              <AppText variant="caption" style={{ color: colors.phase.menstrual.text }}>
+                {t('predictions.nextPeriod')}
+              </AppText>
+            </View>
+            <AppText variant="h2" style={{ color: colors.phase.menstrual.text }}>
+              {formatDate(predictions.nextPeriod.value.startDate, lang)}
+            </AppText>
+            <View style={styles.confBadge}>
+              <Badge
+                label={
+                  CONF_LABEL[predictions.nextPeriod.confidence.level][lang]
+                }
+                color={confidenceMeta(predictions.nextPeriod.confidence.level).text}
+                background={colors.surface}
+              />
+            </View>
+          </Card>
+
+          <OvulationBlurZone
+            ovulation={predictions.ovulation.value}
+            confidence={predictions.ovulation.confidence}
+            lang={lang}
           />
         </View>
       )}
-    </SafeAreaView>
+
+      {/* Action */}
+      <Button
+        label={
+          hasNoCycles
+            ? lang === 'fr'
+              ? 'Enregistrer mes premières règles'
+              : 'Log my first period'
+            : lang === 'fr'
+            ? 'Enregistrer mes règles'
+            : 'Log my period'
+        }
+        icon="plus"
+        onPress={() => setShowRecordForm(true)}
+        style={styles.recordCta}
+      />
+
+      <Modal
+        visible={showRecordForm}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowRecordForm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <RecordPeriodForm
+            initialStartDate={selectedDate}
+            onSuccess={handleRecordSuccess}
+            onCancel={() => {
+              setShowRecordForm(false)
+              setSelectedDate(null)
+            }}
+          />
+        </View>
+      </Modal>
+    </Screen>
   )
 }
 
-// ─── Composant inline pour la confiance des prochaines règles ────────────────
-
-interface ConfidenceInlineProps {
-  confidence: { level: string; explanation: string | null }
+const CONF_LABEL: Record<string, Record<'fr' | 'en', string>> = {
+  low: { fr: 'Confiance faible', en: 'Low confidence' },
+  medium: { fr: 'Confiance moyenne', en: 'Medium confidence' },
+  high: { fr: 'Confiance élevée', en: 'High confidence' },
 }
-
-function ConfidenceInline({ confidence }: ConfidenceInlineProps): React.JSX.Element {
-  const colors: Record<string, string> = {
-    low: '#EF5350',
-    medium: '#FFA726',
-    high: '#66BB6A',
-  }
-  const labels: Record<string, string> = {
-    low: 'Faible',
-    medium: 'Moyenne',
-    high: 'Élevée',
-  }
-
-  return (
-    <Text
-      style={[styles.confidenceText, { color: colors[confidence.level] ?? '#9E9E9E' }]}
-      accessibilityLabel={`Confiance : ${labels[confidence.level] ?? confidence.level}`}
-    >
-      Confiance : {labels[confidence.level] ?? confidence.level}
-    </Text>
-  )
-}
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FAFAFA',
-    padding: 24,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    color: '#757575',
-  },
-  errorText: {
-    fontSize: 15,
-    color: '#EF5350',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#E91E63',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+  title: {
+    marginBottom: spacing.lg,
   },
   phaseCard: {
-    backgroundColor: '#FCE4EC',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#E91E63',
+    marginBottom: spacing.lg,
   },
-  phaseLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#880E4F',
-    marginBottom: 4,
-  },
-  phaseDescription: {
-    fontSize: 13,
-    color: '#AD1457',
-    lineHeight: 18,
-  },
-  calendarContainer: {
-    marginBottom: 16,
+  phaseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   monthNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: spacing.sm,
   },
   navButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F5F5F5',
-    minWidth: 40,
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  navButtonText: {
-    fontSize: 20,
-    color: '#424242',
-    fontWeight: '600',
-  },
-  predictionsSection: {
-    marginBottom: 16,
+  predictions: {
+    marginTop: spacing.xl,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
-  nextPeriodCard: {
-    backgroundColor: '#FFEBEE',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#E57373',
+  predCard: {
+    marginBottom: spacing.md,
   },
-  nextPeriodTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#B71C1C',
-    marginBottom: 4,
+  confBadge: {
+    flexDirection: 'row',
+    marginTop: spacing.sm,
   },
-  nextPeriodDate: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#C62828',
-    marginBottom: 6,
+  recordCta: {
+    marginTop: spacing.xl,
   },
-  confidenceText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  recordButton: {
-    backgroundColor: '#E91E63',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: '#E91E63',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  recordButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  bottomSpacer: {
-    height: 24,
-  },
-  formOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
 })

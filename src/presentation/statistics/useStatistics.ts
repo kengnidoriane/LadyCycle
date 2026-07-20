@@ -136,24 +136,33 @@ export function useStatistics(): StatisticsState {
 export function formatRegularity(
   regularity: 'regular' | 'irregular' | 'very_irregular',
   standardDeviation: number,
+  lang: 'fr' | 'en' = 'fr',
 ): { label: string; description: string; color: string } {
+  const fr = lang !== 'en'
+  const sd = Math.round(standardDeviation)
   switch (regularity) {
     case 'regular':
       return {
-        label: 'Régulier ✓',
-        description: `Vos cycles varient de ±${Math.round(standardDeviation)} jour${standardDeviation >= 1.5 ? 's' : ''} en moyenne.`,
+        label: fr ? 'Régulier ✓' : 'Regular ✓',
+        description: fr
+          ? `Vos cycles varient de ±${sd} jour${standardDeviation >= 1.5 ? 's' : ''} en moyenne.`
+          : `Your cycles vary by ±${sd} day${standardDeviation >= 1.5 ? 's' : ''} on average.`,
         color: '#66BB6A',
       }
     case 'irregular':
       return {
-        label: 'Irrégulier',
-        description: `Vos cycles varient de ±${Math.round(standardDeviation)} jours en moyenne.`,
+        label: fr ? 'Irrégulier' : 'Irregular',
+        description: fr
+          ? `Vos cycles varient de ±${sd} jours en moyenne.`
+          : `Your cycles vary by ±${sd} days on average.`,
         color: '#FFA726',
       }
     case 'very_irregular':
       return {
-        label: 'Très irrégulier',
-        description: `Vos cycles varient de ±${Math.round(standardDeviation)} jours. Les prédictions sont approximatives.`,
+        label: fr ? 'Très irrégulier' : 'Very irregular',
+        description: fr
+          ? `Vos cycles varient de ±${sd} jours. Les prédictions sont approximatives.`
+          : `Your cycles vary by ±${sd} days. Predictions are approximate.`,
         color: '#EF5350',
       }
   }
@@ -161,21 +170,22 @@ export function formatRegularity(
 
 /**
  * Formate une durée en jours en texte lisible.
- * Ex : 28.3 → "28 jours"
+ * Ex : 28.3 → "28 jours" / "28 days"
  */
-export function formatDuration(days: number): string {
+export function formatDuration(days: number, lang: 'fr' | 'en' = 'fr'): string {
   const rounded = Math.round(days)
+  if (lang === 'en') return `${rounded} day${rounded > 1 ? 's' : ''}`
   return `${rounded} jour${rounded > 1 ? 's' : ''}`
 }
 
 /**
- * Formate une CalendarDate en date lisible.
- * Ex : "2024-01-29" → "29 jan. 2024"
+ * Formate une CalendarDate en date lisible selon la langue.
+ * Ex : "2024-01-29" → "29 janv. 2024" / "29 Jan 2024"
  */
-export function formatDate(date: string): string {
+export function formatDate(date: string, lang: 'fr' | 'en' = 'fr'): string {
   const [year, month, day] = date.split('-').map(Number)
   const d = new Date(Date.UTC(year, month - 1, day))
-  return d.toLocaleDateString('fr-FR', {
+  return d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

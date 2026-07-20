@@ -1,86 +1,50 @@
 /**
- * StatisticsScreen — Écran des statistiques du cycle menstruel.
+ * StatisticsScreen — statistiques et historique du cycle.
  *
- * Affiche :
- * - Durée moyenne du cycle et des menstruations
- * - Régularité du cycle (σ traduit en langage naturel)
- * - Nombre de cycles exceptionnels exclus des calculs (transparence)
- * - Graphique d'évolution des durées (si ≥ 6 cycles complets)
- * - Liste de l'historique des cycles avec accès au détail
- *
- * Ce composant ne contient aucune logique métier — tout est délégué à
- * useStatistics() qui orchestre CycleManager et MarkCycleExceptionalUseCase.
+ * Transparence : indique toujours combien de cycles servent réellement au calcul
+ * et combien sont exclus (exceptionnels). Métriques, régularité, graphique,
+ * historique cliquable.
  *
  * Exigences : 7.1, 7.2, 7.3, 7.4, 13.3
  */
 
 import React, { useState } from 'react'
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  SafeAreaView,
-} from 'react-native'
+import { View, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native'
 import { useStatistics, formatRegularity, formatDuration, formatDate } from './useStatistics'
 import { CycleDurationChart } from './CycleDurationChart'
 import { CycleDetailScreen } from './CycleDetailScreen'
+import { Screen, AppText, Card, StatTile, Badge, Button, Icon } from '../components'
+import { colors, spacing, radii } from '../theme'
+import { useI18n } from '../i18n/I18nContext'
 import type { Cycle } from '../../infrastructure/db/CycleRepository'
 
-// ─── Composant ────────────────────────────────────────────────────────────────
-
-/**
- * Écran des statistiques et de l'historique des cycles.
- *
- * Structure :
- * 1. Carte des statistiques globales (moyenne, régularité, cycles exclus)
- * 2. Graphique d'évolution (conditionnel — ≥ 6 cycles)
- * 3. Liste de l'historique des cycles
- * 4. Vue détail d'un cycle (modal inline)
- */
 export function StatisticsScreen(): React.JSX.Element {
   const { statistics, cycles, isLoading, error, refresh, markAsExceptional, unmarkAsExceptional } =
     useStatistics()
-
-  // Cycle sélectionné pour la vue détail
+  const { currentLanguage } = useI18n()
+  const lang = currentLanguage === 'en' ? 'en' : 'fr'
+  const fr = lang !== 'en'
   const [selectedCycle, setSelectedCycle] = useState<Cycle | null>(null)
-
-  // ── Rendu états de chargement / erreur ────────────────────────────────────
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator
-          size="large"
-          color="#E91E63"
-          accessibilityLabel="Chargement des statistiques"
-        />
-        <Text style={styles.loadingText}>Chargement…</Text>
-      </SafeAreaView>
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     )
   }
 
   if (error !== null) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text style={styles.errorText} accessibilityRole="alert">
+      <Screen scroll={false} contentStyle={styles.centered}>
+        <AppText variant="body" tone="secondary" center>
           {error}
-        </Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={refresh}
-          accessibilityLabel="Réessayer le chargement"
-          accessibilityRole="button"
-        >
-          <Text style={styles.retryButtonText}>Réessayer</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+        </AppText>
+        <View style={{ height: spacing.lg }} />
+        <Button label={fr ? 'Réessayer' : 'Retry'} onPress={refresh} fullWidth={false} />
+      </Screen>
     )
   }
-
-  // ── Vue détail d'un cycle ─────────────────────────────────────────────────
 
   if (selectedCycle !== null) {
     return (
@@ -89,7 +53,6 @@ export function StatisticsScreen(): React.JSX.Element {
         onBack={() => setSelectedCycle(null)}
         onMarkExceptional={async (reason) => {
           await markAsExceptional(selectedCycle.id, reason)
-          // Mettre à jour le cycle sélectionné depuis la liste rechargée
           setSelectedCycle(null)
         }}
         onUnmarkExceptional={async () => {
@@ -100,442 +63,210 @@ export function StatisticsScreen(): React.JSX.Element {
     )
   }
 
-  // ── Rendu principal ───────────────────────────────────────────────────────
-
   const hasStatistics = statistics !== null
   const regularityInfo = hasStatistics
-    ? formatRegularity(statistics.cycleRegularity, statistics.standardDeviation)
+    ? formatRegularity(statistics.cycleRegularity, statistics.standardDeviation, lang)
     : null
+  const sortedCycles = [...cycles].sort((a, b) => b.startDate.localeCompare(a.startDate))
 
-  // Cycles triés du plus récent au plus ancien pour l'historique
-  const sortedCycles = [...cycles].sort((a, b) =>
-    b.startDate.localeCompare(a.startDate),
-  )
+  const usedCycles = hasStatistics
+    ? statistics.totalCyclesRecorded - statistics.exceptionalCyclesExcluded
+    : 0
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── En-tête ────────────────────────────────────────────────────── */}
-        <Text style={styles.screenTitle} accessibilityRole="header">
-          Statistiques
-        </Text>
+    <Screen>
+      <AppText variant="h1" style={styles.title} accessibilityRole="header">
+        {fr ? 'Statistiques' : 'Statistics'}
+      </AppText>
 
-        {/* ── Carte des statistiques globales ────────────────────────────── */}
-        {hasStatistics && (
-          <View
-            style={styles.statsCard}
-            accessible={true}
-            accessibilityLabel={
-              `Statistiques basées sur ${statistics.totalCyclesRecorded - statistics.exceptionalCyclesExcluded} cycles` +
-              (statistics.exceptionalCyclesExcluded > 0
-                ? `, ${statistics.exceptionalCyclesExcluded} cycle${statistics.exceptionalCyclesExcluded > 1 ? 's' : ''} exceptionnel${statistics.exceptionalCyclesExcluded > 1 ? 's' : ''} exclu${statistics.exceptionalCyclesExcluded > 1 ? 's' : ''}`
-                : '')
-            }
-            accessibilityRole="summary"
-          >
-            {/* Titre avec note sur les cycles exclus */}
-            <View style={styles.statsCardHeader}>
-              <Text style={styles.statsCardTitle}>Mes statistiques</Text>
-              {/* Exigence 13.3 : indiquer le nombre de cycles exceptionnels exclus */}
-              {statistics.exceptionalCyclesExcluded > 0 && (
-                <Text
-                  style={styles.exceptionalNote}
-                  accessibilityElementsHidden={true}
-                >
-                  Basé sur {statistics.totalCyclesRecorded - statistics.exceptionalCyclesExcluded} cycles
-                  {' '}({statistics.exceptionalCyclesExcluded} exceptionnel{statistics.exceptionalCyclesExcluded > 1 ? 's' : ''} exclu{statistics.exceptionalCyclesExcluded > 1 ? 's' : ''})
-                </Text>
-              )}
-              {statistics.exceptionalCyclesExcluded === 0 && (
-                <Text
-                  style={styles.exceptionalNote}
-                  accessibilityElementsHidden={true}
-                >
-                  Basé sur {statistics.totalCyclesRecorded} cycle{statistics.totalCyclesRecorded > 1 ? 's' : ''}
-                </Text>
-              )}
-            </View>
+      {hasStatistics && (
+        <Card style={styles.statsCard}>
+          <AppText variant="caption" tone="tertiary" style={styles.basedOn}>
+            {statistics.exceptionalCyclesExcluded > 0
+              ? fr
+                ? `Basé sur ${usedCycles} cycles · ${statistics.exceptionalCyclesExcluded} exceptionnel${statistics.exceptionalCyclesExcluded > 1 ? 's' : ''} exclu${statistics.exceptionalCyclesExcluded > 1 ? 's' : ''}`
+                : `Based on ${usedCycles} cycles · ${statistics.exceptionalCyclesExcluded} exceptional excluded`
+              : fr
+              ? `Basé sur ${statistics.totalCyclesRecorded} cycle${statistics.totalCyclesRecorded > 1 ? 's' : ''}`
+              : `Based on ${statistics.totalCyclesRecorded} cycle${statistics.totalCyclesRecorded > 1 ? 's' : ''}`}
+          </AppText>
 
-            {/* Grille des métriques */}
-            <View style={styles.metricsGrid}>
-              {/* Durée moyenne du cycle */}
-              {/* Exigence 7.2 : durée moyenne du cycle */}
-              <MetricCard
-                icon="🔄"
-                label="Durée du cycle"
-                value={formatDuration(statistics.averageCycleLength)}
-                accessibilityLabel={`Durée moyenne du cycle : ${formatDuration(statistics.averageCycleLength)}`}
-              />
-
-              {/* Durée moyenne des menstruations */}
-              {/* Exigence 7.2 : durée moyenne des menstruations */}
-              <MetricCard
-                icon="🔴"
-                label="Durée des règles"
-                value={formatDuration(statistics.averageMenstruationLength)}
-                accessibilityLabel={`Durée moyenne des règles : ${formatDuration(statistics.averageMenstruationLength)}`}
-              />
-            </View>
-
-            {/* Régularité du cycle */}
-            {/* Exigence 7.3 : régularité basée sur σ, traduite en langage naturel */}
-            {regularityInfo !== null && (
-              <View
-                style={[styles.regularityCard, { borderLeftColor: regularityInfo.color }]}
-                accessible={true}
-                accessibilityLabel={`Régularité : ${regularityInfo.label}. ${regularityInfo.description}`}
-                accessibilityRole="text"
-              >
-                <Text style={[styles.regularityLabel, { color: regularityInfo.color }]}>
-                  {regularityInfo.label}
-                </Text>
-                <Text style={styles.regularityDescription} accessibilityElementsHidden={true}>
-                  {regularityInfo.description}
-                </Text>
-              </View>
-            )}
+          <View style={styles.tiles}>
+            <StatTile
+              icon="clock"
+              iconColor={colors.phase.luteal.main}
+              label={fr ? 'Durée du cycle' : 'Cycle length'}
+              value={formatDuration(statistics.averageCycleLength, lang)}
+            />
+            <StatTile
+              icon="droplet"
+              iconColor={colors.phase.menstrual.main}
+              label={fr ? 'Durée des règles' : 'Period length'}
+              value={formatDuration(statistics.averageMenstruationLength, lang)}
+            />
           </View>
-        )}
 
-        {/* ── Graphique d'évolution ───────────────────────────────────────── */}
-        {/* Exigence 7.4 : graphique conditionnel (≥ 6 cycles) */}
-        <CycleDurationChart cycles={cycles} />
-
-        {/* ── Historique des cycles ───────────────────────────────────────── */}
-        {/* Exigence 7.1 : afficher tous les cycles enregistrés */}
-        <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>
-            Historique ({cycles.length} cycle{cycles.length > 1 ? 's' : ''})
-          </Text>
-
-          {sortedCycles.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>
-                Aucun cycle enregistré pour l'instant.{'\n'}
-                Commencez par enregistrer vos règles depuis le calendrier.
-              </Text>
+          {regularityInfo !== null && (
+            <View style={[styles.regularity, { borderLeftColor: regularityInfo.color }]}>
+              <AppText variant="bodyStrong" style={{ color: regularityInfo.color }}>
+                {regularityInfo.label}
+              </AppText>
+              <AppText variant="caption" tone="secondary" style={styles.regDesc}>
+                {regularityInfo.description}
+              </AppText>
             </View>
-          ) : (
-            sortedCycles.map(cycle => (
-              <CycleHistoryRow
-                key={cycle.id}
-                cycle={cycle}
-                onPress={() => setSelectedCycle(cycle)}
-              />
-            ))
           )}
-        </View>
+        </Card>
+      )}
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </SafeAreaView>
+      <CycleDurationChart cycles={cycles} lang={lang} />
+
+      <View style={styles.history}>
+        <AppText variant="h3" style={styles.sectionTitle}>
+          {fr ? 'Historique' : 'History'} ({cycles.length})
+        </AppText>
+
+        {sortedCycles.length === 0 ? (
+          <Card>
+            <AppText variant="caption" tone="secondary" center>
+              {fr ? "Aucun cycle enregistré pour l'instant." : 'No cycles recorded yet.'}
+            </AppText>
+          </Card>
+        ) : (
+          sortedCycles.map((cycle) => (
+            <CycleHistoryRow
+              key={cycle.id}
+              cycle={cycle}
+              lang={lang}
+              onPress={() => setSelectedCycle(cycle)}
+            />
+          ))
+        )}
+      </View>
+    </Screen>
   )
 }
-
-// ─── Composant MetricCard ─────────────────────────────────────────────────────
-
-interface MetricCardProps {
-  icon: string
-  label: string
-  value: string
-  accessibilityLabel: string
-}
-
-function MetricCard({ icon, label, value, accessibilityLabel }: MetricCardProps): React.JSX.Element {
-  return (
-    <View
-      style={metricStyles.card}
-      accessible={true}
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="text"
-    >
-      <Text style={metricStyles.icon} accessibilityElementsHidden={true}>{icon}</Text>
-      <Text style={metricStyles.value}>{value}</Text>
-      <Text style={metricStyles.label} accessibilityElementsHidden={true}>{label}</Text>
-    </View>
-  )
-}
-
-const metricStyles = StyleSheet.create({
-  card: {
-    flex: 1,
-    backgroundColor: '#FFF0F5',
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  icon: {
-    fontSize: 22,
-    marginBottom: 6,
-  },
-  value: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#880E4F',
-    marginBottom: 2,
-  },
-  label: {
-    fontSize: 11,
-    color: '#AD1457',
-    textAlign: 'center',
-  },
-})
-
-// ─── Composant CycleHistoryRow ────────────────────────────────────────────────
 
 interface CycleHistoryRowProps {
   cycle: Cycle
+  lang: 'fr' | 'en'
   onPress: () => void
 }
 
-/**
- * Ligne de l'historique représentant un cycle.
- * Affiche les dates, la durée, le badge exceptionnel si applicable.
- * Appuyable pour accéder au détail du cycle.
- */
-function CycleHistoryRow({ cycle, onPress }: CycleHistoryRowProps): React.JSX.Element {
-  const startLabel = formatDate(cycle.startDate)
-  const endLabel = cycle.endDate ? formatDate(cycle.endDate) : 'En cours'
-  const durationLabel = cycle.duration
-    ? `${cycle.duration} jours`
-    : cycle.endDate
-    ? '—'
-    : 'En cours'
+function CycleHistoryRow({ cycle, lang, onPress }: CycleHistoryRowProps): React.JSX.Element {
+  const fr = lang !== 'en'
+  const ongoing = fr ? 'En cours' : 'Ongoing'
+  const startLabel = formatDate(cycle.startDate, lang)
+  const endLabel = cycle.endDate ? formatDate(cycle.endDate, lang) : ongoing
+  const durationLabel = cycle.duration ? formatDuration(cycle.duration, lang) : null
 
-  const accessibilityLabel =
-    `Cycle du ${startLabel}` +
-    (cycle.endDate ? ` au ${endLabel}, ${durationLabel}` : ', en cours') +
-    (cycle.isExceptional ? ', marqué comme exceptionnel' : '') +
-    `. Appuyez pour voir le détail.`
+  const accessibilityLabel = fr
+    ? `Cycle du ${startLabel}` +
+      (cycle.endDate ? ` au ${endLabel}` : ', en cours') +
+      (cycle.isExceptional ? ', marqué comme exceptionnel' : '') +
+      '. Appuyez pour voir le détail.'
+    : `Cycle from ${startLabel}` +
+      (cycle.endDate ? ` to ${endLabel}` : ', ongoing') +
+      (cycle.isExceptional ? ', marked as exceptional' : '') +
+      '. Tap to view details.'
 
   return (
     <TouchableOpacity
-      style={[styles.historyRow, cycle.isExceptional && styles.historyRowExceptional]}
+      activeOpacity={0.7}
       onPress={onPress}
-      accessible={true}
-      accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
-      accessibilityHint="Ouvre le détail de ce cycle"
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.row, cycle.isExceptional && styles.rowExceptional]}
     >
-      {/* Indicateur de couleur */}
       <View
         style={[
-          styles.historyRowIndicator,
-          { backgroundColor: cycle.isExceptional ? '#BDBDBD' : '#E91E63' },
+          styles.rowIndicator,
+          { backgroundColor: cycle.isExceptional ? colors.borderStrong : colors.primary },
         ]}
-        accessibilityElementsHidden={true}
       />
-
-      {/* Contenu */}
-      <View style={styles.historyRowContent}>
-        <View style={styles.historyRowHeader}>
-          <Text style={styles.historyRowDate}>{startLabel}</Text>
+      <View style={styles.rowContent}>
+        <View style={styles.rowHeader}>
+          <AppText variant="bodyStrong">{startLabel}</AppText>
           {cycle.isExceptional && (
-            <View style={styles.exceptionalBadge} accessibilityElementsHidden={true}>
-              <Text style={styles.exceptionalBadgeText}>Exceptionnel</Text>
-            </View>
+            <Badge
+              label={fr ? 'Exceptionnel' : 'Exceptional'}
+              color={colors.textSecondary}
+              background={colors.surfaceAlt}
+            />
           )}
         </View>
-        <Text style={styles.historyRowDetails} accessibilityElementsHidden={true}>
-          {endLabel !== 'En cours' ? `Fin : ${endLabel}` : '🔴 En cours'}
-          {cycle.duration ? `  ·  ${durationLabel}` : ''}
-        </Text>
-        {cycle.symptoms.length > 0 && (
-          <Text style={styles.historyRowSymptoms} accessibilityElementsHidden={true}>
-            {cycle.symptoms.length} symptôme{cycle.symptoms.length > 1 ? 's' : ''} enregistré{cycle.symptoms.length > 1 ? 's' : ''}
-          </Text>
-        )}
+        <AppText variant="caption" tone="secondary">
+          {endLabel !== ongoing ? `${fr ? 'Fin' : 'End'} : ${endLabel}` : ongoing}
+          {durationLabel ? `  ·  ${durationLabel}` : ''}
+        </AppText>
       </View>
-
-      {/* Chevron */}
-      <Text style={styles.historyRowChevron} accessibilityElementsHidden={true}>›</Text>
+      <Icon name="chevronRight" size={20} color={colors.textTertiary} />
     </TouchableOpacity>
   )
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FAFAFA',
-    padding: 24,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    color: '#757575',
+  title: {
+    marginBottom: spacing.lg,
   },
-  errorText: {
-    fontSize: 15,
-    color: '#EF5350',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#E91E63',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 16,
-  },
-  // ── Carte statistiques ──────────────────────────────────────────────────
   statsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: spacing.lg,
   },
-  statsCardHeader: {
-    marginBottom: 14,
+  basedOn: {
+    marginBottom: spacing.md,
   },
-  statsCardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 2,
-  },
-  exceptionalNote: {
-    fontSize: 12,
-    color: '#9E9E9E',
-  },
-  metricsGrid: {
+  tiles: {
     flexDirection: 'row',
-    marginHorizontal: -4,
-    marginBottom: 14,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
-  regularityCard: {
-    backgroundColor: '#FAFAFA',
-    borderRadius: 8,
-    padding: 12,
+  regularity: {
+    backgroundColor: colors.background,
+    borderRadius: radii.sm,
+    padding: spacing.md,
     borderLeftWidth: 4,
   },
-  regularityLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  regularityDescription: {
-    fontSize: 13,
-    color: '#616161',
+  regDesc: {
+    marginTop: 2,
     lineHeight: 18,
   },
-  // ── Historique ──────────────────────────────────────────────────────────
-  historySection: {
-    marginBottom: 8,
+  history: {
+    marginTop: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
-  emptyState: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#9E9E9E',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  historyRow: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    paddingRight: spacing.md,
   },
-  historyRowExceptional: {
-    opacity: 0.75,
+  rowExceptional: {
+    opacity: 0.7,
   },
-  historyRowIndicator: {
+  rowIndicator: {
     width: 4,
     alignSelf: 'stretch',
   },
-  historyRowContent: {
+  rowContent: {
     flex: 1,
-    padding: 14,
+    padding: spacing.md,
   },
-  historyRowHeader: {
+  rowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 3,
-  },
-  historyRowDate: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#212121',
-  },
-  historyRowDetails: {
-    fontSize: 13,
-    color: '#757575',
+    gap: spacing.sm,
     marginBottom: 2,
-  },
-  historyRowSymptoms: {
-    fontSize: 12,
-    color: '#9E9E9E',
-  },
-  historyRowChevron: {
-    fontSize: 20,
-    color: '#BDBDBD',
-    paddingRight: 14,
-    fontWeight: '300',
-  },
-  exceptionalBadge: {
-    backgroundColor: '#EEEEEE',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  exceptionalBadgeText: {
-    fontSize: 10,
-    color: '#757575',
-    fontWeight: '600',
-  },
-  bottomSpacer: {
-    height: 24,
   },
 })

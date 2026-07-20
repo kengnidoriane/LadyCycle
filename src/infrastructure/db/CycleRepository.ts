@@ -188,9 +188,10 @@ const DEFAULT_PREFERENCES: UserPreferences = {
  * - Les symptômes et prédictions sont correctement associés aux cycles
  */
 export class InMemoryCycleRepository implements ICycleRepository {
-  // Stockage principal : sérialisation JSON pour simuler la persistance réelle
-  private cycles: Map<string, string> = new Map()
-  private preferences: string | null = null
+  // Stockage principal : sérialisation JSON pour simuler la persistance réelle.
+  // `protected` pour permettre à PersistentCycleRepository d'hydrater/persister.
+  protected cycles: Map<string, string> = new Map()
+  protected preferences: string | null = null
 
   saveCycle(cycle: Cycle): Result<void, StorageError> {
     try {

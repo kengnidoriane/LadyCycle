@@ -1,66 +1,39 @@
 /**
- * RecoveryKitScreen — Flux d'activation du Kit de Récupération.
+ * RecoveryKitScreen — flux d'activation du Kit de Récupération (12 mots BIP-39).
  *
- * Étapes du flux :
- * 1. Introduction : explication en langage simple du Kit de Récupération
- * 2. Génération : affichage des 12 mots BIP-39
- * 3. Confirmation : l'utilisatrice confirme avoir sauvegardé les mots
- * 4. Succès : la synchronisation cloud est débloquée
- *
- * Règle de sécurité : la synchronisation cloud est BLOQUÉE tant que
- * recoveryKitGenerated === false (Exigence 10.6).
+ * Étapes : intro → génération → affichage des 12 mots → confirmation → succès.
+ * La sync cloud reste bloquée tant que le kit n'est pas confirmé (Exigence 10.6).
+ * Restylé avec le système de design.
  *
  * Exigences : 10.5, 10.6, 10.7
  */
 
 import React, { useState } from 'react'
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  SafeAreaView,
-  ActivityIndicator,
-  Alert,
-} from 'react-native'
+import { View, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native'
+import { Screen, AppText, Card, Button, Icon } from '../components'
+import { colors, spacing, radii } from '../theme'
+import { useI18n } from '../i18n/I18nContext'
 import type { RecoveryKit } from '../../infrastructure/crypto/RecoveryKitService'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type FlowStep = 'intro' | 'generating' | 'display' | 'confirm' | 'success'
 
 interface RecoveryKitScreenProps {
-  /** Callback pour générer le kit (délégué à useSettings) */
   onGenerateKit: () => Promise<RecoveryKit | null>
-  /** Callback pour confirmer la sauvegarde (débloque la sync cloud) */
   onConfirmSaved: () => Promise<void>
-  /** Callback pour fermer l'écran */
   onClose: () => void
 }
 
-// ─── Composant ────────────────────────────────────────────────────────────────
-
-/**
- * Flux complet de génération et confirmation du Kit de Récupération.
- *
- * Ce composant guide l'utilisatrice à travers 4 étapes :
- * 1. Explication du kit en langage simple
- * 2. Génération et affichage des 12 mots
- * 3. Confirmation de la sauvegarde
- * 4. Activation de la synchronisation cloud
- */
 export function RecoveryKitScreen({
   onGenerateKit,
   onConfirmSaved,
   onClose,
 }: RecoveryKitScreenProps): React.JSX.Element {
+  const { currentLanguage } = useI18n()
+  const fr = currentLanguage !== 'en'
   const [step, setStep] = useState<FlowStep>('intro')
   const [kit, setKit] = useState<RecoveryKit | null>(null)
   const [hasConfirmedSaved, setHasConfirmedSaved] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
 
   async function handleGenerate(): Promise<void> {
     setStep('generating')
@@ -72,10 +45,7 @@ export function RecoveryKitScreen({
         setStep('display')
       } else {
         setStep('intro')
-        Alert.alert(
-          'Erreur',
-          'Impossible de générer le Kit de Récupération. Veuillez réessayer.',
-        )
+        Alert.alert(fr ? 'Erreur' : 'Error', fr ? 'Impossible de générer le Kit de Récupération. Réessaie.' : 'Could not generate the Recovery Kit. Please try again.')
       }
     } finally {
       setIsProcessing(false)
@@ -85,226 +55,166 @@ export function RecoveryKitScreen({
   async function handleConfirm(): Promise<void> {
     if (!hasConfirmedSaved) {
       Alert.alert(
-        'Confirmation requise',
-        'Veuillez confirmer que vous avez sauvegardé vos 12 mots en lieu sûr avant de continuer.',
+        fr ? 'Confirmation requise' : 'Confirmation required',
+        fr ? 'Confirme que tu as sauvegardé tes 12 mots en lieu sûr.' : 'Confirm that you have saved your 12 words in a safe place.',
       )
       return
     }
-
     setIsProcessing(true)
     try {
       await onConfirmSaved()
       setStep('success')
     } catch {
-      Alert.alert(
-        'Erreur',
-        'Impossible d\'activer la sauvegarde cloud. Veuillez réessayer.',
-      )
+      Alert.alert(fr ? 'Erreur' : 'Error', fr ? "Impossible d'activer la sauvegarde cloud. Réessaie." : 'Could not enable cloud backup. Please try again.')
     } finally {
       setIsProcessing(false)
     }
   }
 
-  // ── Rendu par étape ───────────────────────────────────────────────────────
+  if (step === 'generating') {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <AppText variant="body" tone="secondary" center style={{ marginTop: spacing.lg }}>
+          {fr ? 'Génération de ton Kit de Récupération…' : 'Generating your Recovery Kit…'}
+        </AppText>
+      </View>
+    )
+  }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {step === 'intro' && (
-          <IntroStep onGenerate={handleGenerate} onClose={onClose} />
-        )}
-
-        {step === 'generating' && (
-          <View style={styles.centered}>
-            <ActivityIndicator
-              size="large"
-              color="#E91E63"
-              accessibilityLabel="Génération du Kit de Récupération en cours"
-            />
-            <Text style={styles.generatingText}>
-              Génération de votre Kit de Récupération…
-            </Text>
-          </View>
-        )}
-
-        {step === 'display' && kit !== null && (
-          <DisplayStep
-            kit={kit}
-            onContinue={() => setStep('confirm')}
-            onBack={() => setStep('intro')}
-          />
-        )}
-
-        {step === 'confirm' && kit !== null && (
-          <ConfirmStep
-            kit={kit}
-            hasConfirmed={hasConfirmedSaved}
-            onToggleConfirm={() => setHasConfirmedSaved(v => !v)}
-            onConfirm={handleConfirm}
-            onBack={() => setStep('display')}
-            isProcessing={isProcessing}
-          />
-        )}
-
-        {step === 'success' && (
-          <SuccessStep onClose={onClose} />
-        )}
-      </ScrollView>
-    </SafeAreaView>
+    <Screen>
+      {step === 'intro' && <IntroStep fr={fr} onGenerate={handleGenerate} onClose={onClose} />}
+      {step === 'display' && kit !== null && (
+        <DisplayStep fr={fr} kit={kit} onContinue={() => setStep('confirm')} onBack={() => setStep('intro')} />
+      )}
+      {step === 'confirm' && kit !== null && (
+        <ConfirmStep
+          fr={fr}
+          kit={kit}
+          hasConfirmed={hasConfirmedSaved}
+          onToggleConfirm={() => setHasConfirmedSaved((v) => !v)}
+          onConfirm={handleConfirm}
+          onBack={() => setStep('display')}
+          isProcessing={isProcessing}
+        />
+      )}
+      {step === 'success' && <SuccessStep fr={fr} onClose={onClose} />}
+    </Screen>
   )
 }
 
-// ─── Étape 1 : Introduction ───────────────────────────────────────────────────
+// ─── Étape : intro ────────────────────────────────────────────────────────────
 
-interface IntroStepProps {
-  onGenerate: () => void
-  onClose: () => void
-}
-
-function IntroStep({ onGenerate, onClose }: IntroStepProps): React.JSX.Element {
+function IntroStep({ fr, onGenerate, onClose }: { fr: boolean; onGenerate: () => void; onClose: () => void }): React.JSX.Element {
   return (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepIcon} accessibilityElementsHidden={true}>🔑</Text>
-      <Text style={styles.stepTitle} accessibilityRole="header">
-        Kit de Récupération
-      </Text>
+    <View>
+      <StepHeader icon="lock" title={fr ? 'Kit de Récupération' : 'Recovery Kit'} />
 
-      <View style={styles.explanationCard}>
-        <Text style={styles.explanationTitle}>Pourquoi ce kit ?</Text>
-        <Text style={styles.explanationText}>
-          Vos données sont chiffrées sur votre téléphone. Si vous perdez votre
-          appareil, vous aurez besoin de ce kit pour récupérer vos données depuis
-          la sauvegarde cloud.
-        </Text>
-      </View>
+      <Card style={styles.block}>
+        <AppText variant="bodyStrong" style={styles.blockTitle}>
+          {fr ? 'Pourquoi ce kit ?' : 'Why this kit?'}
+        </AppText>
+        <AppText variant="caption" tone="secondary" style={styles.blockText}>
+          {fr
+            ? 'Tes données sont chiffrées sur ton téléphone. Si tu perds ton appareil, ce kit est le seul moyen de récupérer tes données depuis la sauvegarde cloud.'
+            : 'Your data is encrypted on your phone. If you lose your device, this kit is the only way to recover your data from the cloud backup.'}
+        </AppText>
+      </Card>
 
-      <View style={styles.explanationCard}>
-        <Text style={styles.explanationTitle}>Comment ça fonctionne ?</Text>
-        <Text style={styles.explanationText}>
-          Nous allons générer une liste de{' '}
-          <Text style={styles.bold}>12 mots uniques</Text>. Notez-les sur papier
-          et conservez-les en lieu sûr — comme un mot de passe très important.
-        </Text>
-      </View>
+      <Card style={styles.block}>
+        <AppText variant="bodyStrong" style={styles.blockTitle}>
+          {fr ? 'Comment ça marche ?' : 'How does it work?'}
+        </AppText>
+        <AppText variant="caption" tone="secondary" style={styles.blockText}>
+          {fr
+            ? 'On va générer une liste de 12 mots uniques. Note-les sur papier et garde-les en lieu sûr — comme un mot de passe très important.'
+            : 'We’ll generate a list of 12 unique words. Write them on paper and keep them somewhere safe — like a very important password.'}
+        </AppText>
+      </Card>
 
-      <View style={[styles.explanationCard, styles.warningCard]}>
-        <Text style={styles.warningTitle}>⚠️ Important</Text>
-        <Text style={styles.warningText}>
-          Sans ces 12 mots, vos données chiffrées seront{' '}
-          <Text style={styles.bold}>irrécupérables</Text> en cas de perte de
-          votre téléphone. Ne les partagez jamais avec personne.
-        </Text>
-      </View>
+      <Card tint={colors.phase.ovulation.soft} accent={colors.phase.ovulation.main} style={styles.block}>
+        <View style={styles.warnHeader}>
+          <Icon name="info" size={18} color={colors.phase.ovulation.text} />
+          <AppText variant="bodyStrong" style={{ color: colors.phase.ovulation.text }}>
+            {fr ? 'Important' : 'Important'}
+          </AppText>
+        </View>
+        <AppText variant="caption" style={[styles.blockText, { color: colors.phase.ovulation.text }]}>
+          {fr
+            ? 'Sans ces 12 mots, tes données chiffrées seront irrécupérables en cas de perte du téléphone. Ne les partage jamais.'
+            : 'Without these 12 words, your encrypted data will be unrecoverable if you lose your phone. Never share them.'}
+        </AppText>
+      </Card>
 
-      <TouchableOpacity
-        style={styles.primaryButton}
-        onPress={onGenerate}
-        accessibilityLabel="Générer mon Kit de Récupération"
-        accessibilityRole="button"
-        accessibilityHint="Génère une liste de 12 mots uniques pour sécuriser vos données"
-      >
-        <Text style={styles.primaryButtonText}>Générer mon Kit de Récupération</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={onClose}
-        accessibilityLabel="Annuler et revenir aux paramètres"
-        accessibilityRole="button"
-      >
-        <Text style={styles.secondaryButtonText}>Annuler</Text>
-      </TouchableOpacity>
+      <Button label={fr ? 'Générer mon Kit de Récupération' : 'Generate my Recovery Kit'} icon="lock" onPress={onGenerate} style={styles.primary} />
+      <Button label={fr ? 'Annuler' : 'Cancel'} variant="ghost" onPress={onClose} />
     </View>
   )
 }
 
-// ─── Étape 2 : Affichage des 12 mots ─────────────────────────────────────────
+// ─── Étape : affichage ────────────────────────────────────────────────────────
 
-interface DisplayStepProps {
-  kit: RecoveryKit
-  onContinue: () => void
-  onBack: () => void
-}
-
-function DisplayStep({ kit, onContinue, onBack }: DisplayStepProps): React.JSX.Element {
+function DisplayStep({ fr, kit, onContinue, onBack }: { fr: boolean; kit: RecoveryKit; onContinue: () => void; onBack: () => void }): React.JSX.Element {
   const words = kit.mnemonic.split(' ')
-
   return (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepIcon} accessibilityElementsHidden={true}>📝</Text>
-      <Text style={styles.stepTitle} accessibilityRole="header">
-        Vos 12 mots de récupération
-      </Text>
-      <Text style={styles.stepSubtitle}>
-        Notez ces mots dans l'ordre exact sur papier. Ils sont votre seul moyen
-        de récupérer vos données.
-      </Text>
+    <View>
+      <StepHeader icon="pencil" title={fr ? 'Tes 12 mots de récupération' : 'Your 12 recovery words'} />
+      <AppText variant="caption" tone="secondary" center style={styles.subtitle}>
+        {fr
+          ? "Note ces mots dans l'ordre exact sur papier. Ils sont ton seul moyen de récupérer tes données."
+          : 'Write these words in the exact order on paper. They are your only way to recover your data.'}
+      </AppText>
 
-      {/* Grille des 12 mots */}
       <View
         style={styles.wordsGrid}
-        accessible={true}
-        accessibilityLabel={`Vos 12 mots de récupération : ${words.join(', ')}`}
-        accessibilityRole="text"
+        accessibilityLabel={fr ? `Tes 12 mots de récupération : ${words.join(', ')}` : `Your 12 recovery words: ${words.join(', ')}`}
       >
         {words.map((word, index) => (
-          <View key={index} style={styles.wordCard} accessibilityElementsHidden={true}>
-            <Text style={styles.wordNumber}>{index + 1}</Text>
-            <Text style={styles.wordText}>{word}</Text>
+          <View key={index} style={styles.wordCard} accessibilityElementsHidden>
+            <AppText variant="tiny" tone="tertiary">
+              {index + 1}
+            </AppText>
+            <AppText variant="bodyStrong" center>
+              {word}
+            </AppText>
           </View>
         ))}
       </View>
 
-      <View style={[styles.explanationCard, styles.warningCard]}>
-        <Text style={styles.warningText}>
-          📵 Ne faites pas de capture d'écran. Notez ces mots sur papier uniquement.
-        </Text>
-      </View>
+      <Card tint={colors.phase.ovulation.soft} accent={colors.phase.ovulation.main} style={styles.block}>
+        <AppText variant="caption" style={{ color: colors.phase.ovulation.text }}>
+          {fr
+            ? "Ne fais pas de capture d'écran. Note ces mots sur papier uniquement."
+            : 'Do not take a screenshot. Write these words on paper only.'}
+        </AppText>
+      </Card>
 
-      <TouchableOpacity
-        style={styles.primaryButton}
-        onPress={onContinue}
-        accessibilityLabel="J'ai noté mes 12 mots, continuer"
-        accessibilityRole="button"
-      >
-        <Text style={styles.primaryButtonText}>J'ai noté mes mots →</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={onBack}
-        accessibilityLabel="Retour à l'introduction"
-        accessibilityRole="button"
-      >
-        <Text style={styles.secondaryButtonText}>Retour</Text>
-      </TouchableOpacity>
+      <Button label={fr ? "J'ai noté mes mots" : 'I’ve written my words'} icon="arrowRight" onPress={onContinue} style={styles.primary} />
+      <Button label={fr ? 'Retour' : 'Back'} variant="ghost" onPress={onBack} />
     </View>
   )
 }
 
-// ─── Étape 3 : Confirmation ───────────────────────────────────────────────────
-
-interface ConfirmStepProps {
-  kit: RecoveryKit
-  hasConfirmed: boolean
-  onToggleConfirm: () => void
-  onConfirm: () => void
-  onBack: () => void
-  isProcessing: boolean
-}
+// ─── Étape : confirmation ─────────────────────────────────────────────────────
 
 function ConfirmStep({
+  fr,
   kit,
   hasConfirmed,
   onToggleConfirm,
   onConfirm,
   onBack,
   isProcessing,
-}: ConfirmStepProps): React.JSX.Element {
-  // Afficher seulement les 3 premiers et 3 derniers mots pour vérification
+}: {
+  fr: boolean
+  kit: RecoveryKit
+  hasConfirmed: boolean
+  onToggleConfirm: () => void
+  onConfirm: () => void
+  onBack: () => void
+  isProcessing: boolean
+}): React.JSX.Element {
   const words = kit.mnemonic.split(' ')
   const previewWords = [
     ...words.slice(0, 3).map((w, i) => ({ num: i + 1, word: w })),
@@ -312,361 +222,219 @@ function ConfirmStep({
   ]
 
   return (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepIcon} accessibilityElementsHidden={true}>✅</Text>
-      <Text style={styles.stepTitle} accessibilityRole="header">
-        Confirmez la sauvegarde
-      </Text>
-      <Text style={styles.stepSubtitle}>
-        Vérifiez que vous avez bien noté vos mots en consultant votre liste papier.
-      </Text>
+    <View>
+      <StepHeader icon="check" title={fr ? 'Confirme la sauvegarde' : 'Confirm the backup'} />
+      <AppText variant="caption" tone="secondary" center style={styles.subtitle}>
+        {fr
+          ? 'Vérifie que tu as bien noté tes mots en consultant ta liste papier.'
+          : 'Check that you wrote your words correctly using your paper list.'}
+      </AppText>
 
-      {/* Aperçu partiel pour vérification */}
-      <View style={styles.previewCard}>
-        <Text style={styles.previewTitle}>Vérification rapide</Text>
-        <Text style={styles.previewSubtitle}>
-          Confirmez les mots 1-3 et 10-12 sur votre liste papier :
-        </Text>
+      <Card style={styles.block}>
+        <AppText variant="bodyStrong" style={styles.blockTitle}>
+          {fr ? 'Vérification rapide' : 'Quick check'}
+        </AppText>
+        <AppText variant="caption" tone="tertiary" style={styles.blockText}>
+          {fr ? 'Confirme les mots 1-3 et 10-12 sur ta liste papier :' : 'Confirm words 1-3 and 10-12 on your paper list:'}
+        </AppText>
         <View style={styles.previewWords}>
           {previewWords.map(({ num, word }) => (
-            <View key={num} style={styles.previewWordRow}>
-              <Text style={styles.previewWordNum}>{num}.</Text>
-              <Text style={styles.previewWordText}>{word}</Text>
+            <View key={num} style={styles.previewRow}>
+              <AppText variant="caption" tone="tertiary" style={styles.previewNum}>
+                {num}.
+              </AppText>
+              <AppText variant="bodyStrong">{word}</AppText>
             </View>
           ))}
         </View>
-      </View>
+      </Card>
 
-      {/* Case à cocher de confirmation */}
       <TouchableOpacity
+        activeOpacity={0.8}
         style={styles.checkboxRow}
         onPress={onToggleConfirm}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: hasConfirmed }}
-        accessibilityLabel="J'ai sauvegardé mes 12 mots en lieu sûr"
+        accessibilityLabel={fr ? "J'ai sauvegardé mes 12 mots en lieu sûr" : 'I have saved my 12 words in a safe place'}
       >
         <View style={[styles.checkbox, hasConfirmed && styles.checkboxChecked]}>
-          {hasConfirmed && (
-            <Text style={styles.checkboxMark} accessibilityElementsHidden={true}>
-              ✓
-            </Text>
-          )}
+          {hasConfirmed && <Icon name="check" size={14} color={colors.textInverse} />}
         </View>
-        <Text style={styles.checkboxLabel}>
-          J'ai noté et sauvegardé mes 12 mots en lieu sûr. Je comprends que sans
-          eux, mes données seront irrécupérables.
-        </Text>
+        <AppText variant="caption" style={styles.checkboxLabel}>
+          {fr
+            ? "J'ai noté et sauvegardé mes 12 mots en lieu sûr. Je comprends que sans eux, mes données seront irrécupérables."
+            : 'I have written and saved my 12 words in a safe place. I understand that without them, my data will be unrecoverable.'}
+        </AppText>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.primaryButton, !hasConfirmed && styles.primaryButtonDisabled]}
+      <Button
+        label={fr ? 'Activer la sauvegarde cloud' : 'Enable cloud backup'}
+        icon="shield"
         onPress={onConfirm}
-        disabled={!hasConfirmed || isProcessing}
-        accessibilityLabel="Activer la sauvegarde cloud"
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !hasConfirmed || isProcessing }}
-      >
-        {isProcessing ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.primaryButtonText}>Activer la sauvegarde cloud</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={onBack}
-        disabled={isProcessing}
-        accessibilityLabel="Retour pour revoir les mots"
-        accessibilityRole="button"
-      >
-        <Text style={styles.secondaryButtonText}>Revoir mes mots</Text>
-      </TouchableOpacity>
+        loading={isProcessing}
+        disabled={!hasConfirmed}
+        style={styles.primary}
+      />
+      <Button label={fr ? 'Revoir mes mots' : 'Review my words'} variant="ghost" onPress={onBack} />
     </View>
   )
 }
 
-// ─── Étape 4 : Succès ─────────────────────────────────────────────────────────
+// ─── Étape : succès ───────────────────────────────────────────────────────────
 
-interface SuccessStepProps {
-  onClose: () => void
-}
-
-function SuccessStep({ onClose }: SuccessStepProps): React.JSX.Element {
+function SuccessStep({ fr, onClose }: { fr: boolean; onClose: () => void }): React.JSX.Element {
   return (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepIcon} accessibilityElementsHidden={true}>🎉</Text>
-      <Text style={styles.stepTitle} accessibilityRole="header">
-        Sauvegarde cloud activée !
-      </Text>
-      <Text style={styles.stepSubtitle}>
-        Votre Kit de Récupération est configuré. La synchronisation cloud est
-        maintenant active.
-      </Text>
+    <View>
+      <StepHeader icon="sparkles" title={fr ? 'Sauvegarde cloud activée' : 'Cloud backup enabled'} />
+      <AppText variant="caption" tone="secondary" center style={styles.subtitle}>
+        {fr
+          ? 'Ton Kit de Récupération est configuré. La synchronisation cloud est maintenant active.'
+          : 'Your Recovery Kit is set up. Cloud sync is now active.'}
+      </AppText>
 
-      <View style={styles.explanationCard}>
-        <Text style={styles.explanationTitle}>Ce qui se passe maintenant</Text>
-        <Text style={styles.explanationText}>
-          Vos données sont chiffrées localement et sauvegardées de manière
-          sécurisée dans le cloud. Seul votre Kit de Récupération peut déchiffrer
-          ces données — même nous n'y avons pas accès.
-        </Text>
-      </View>
+      <Card style={styles.block}>
+        <AppText variant="bodyStrong" style={styles.blockTitle}>
+          {fr ? 'Ce qui se passe maintenant' : 'What happens now'}
+        </AppText>
+        <AppText variant="caption" tone="secondary" style={styles.blockText}>
+          {fr
+            ? "Tes données sont chiffrées localement puis sauvegardées dans le cloud. Seul ton Kit de Récupération peut les déchiffrer — même nous n'y avons pas accès."
+            : 'Your data is encrypted locally then backed up to the cloud. Only your Recovery Kit can decrypt it — not even we can access it.'}
+        </AppText>
+      </Card>
 
-      <View style={styles.explanationCard}>
-        <Text style={styles.explanationTitle}>En cas de perte de téléphone</Text>
-        <Text style={styles.explanationText}>
-          Installez l'application sur votre nouvel appareil, choisissez
-          "Restaurer depuis le cloud" et entrez vos 12 mots de récupération.
-        </Text>
-      </View>
+      <Card style={styles.block}>
+        <AppText variant="bodyStrong" style={styles.blockTitle}>
+          {fr ? 'En cas de perte de téléphone' : 'If you lose your phone'}
+        </AppText>
+        <AppText variant="caption" tone="secondary" style={styles.blockText}>
+          {fr
+            ? "Installe l'app sur ton nouvel appareil, choisis « Restaurer depuis le cloud » et entre tes 12 mots de récupération."
+            : 'Install the app on your new device, choose “Restore from cloud” and enter your 12 recovery words.'}
+        </AppText>
+      </Card>
 
-      <TouchableOpacity
-        style={styles.primaryButton}
-        onPress={onClose}
-        accessibilityLabel="Terminer et revenir aux paramètres"
-        accessibilityRole="button"
-      >
-        <Text style={styles.primaryButtonText}>Terminé</Text>
-      </TouchableOpacity>
+      <Button label={fr ? 'Terminé' : 'Done'} icon="check" onPress={onClose} style={styles.primary} />
     </View>
   )
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Commun ───────────────────────────────────────────────────────────────────
+
+function StepHeader({ icon, title }: { icon: 'lock' | 'pencil' | 'check' | 'sparkles'; title: string }): React.JSX.Element {
+  return (
+    <View style={styles.stepHeader}>
+      <View style={styles.stepIcon}>
+        <Icon name={icon} size={32} color={colors.primary} />
+      </View>
+      <AppText variant="h1" center accessibilityRole="header">
+        {title}
+      </AppText>
+    </View>
+  )
+}
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    backgroundColor: colors.background,
+    padding: spacing.xxl,
   },
-  generatingText: {
-    marginTop: 16,
-    fontSize: 15,
-    color: '#757575',
-    textAlign: 'center',
-  },
-  stepContainer: {
+  stepHeader: {
     alignItems: 'center',
+    marginBottom: spacing.lg,
   },
   stepIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-    marginTop: 8,
+    width: 72,
+    height: 72,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
-  stepTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#212121',
-    textAlign: 'center',
-    marginBottom: 8,
+  subtitle: {
+    lineHeight: 19,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.sm,
   },
-  stepSubtitle: {
-    fontSize: 14,
-    color: '#616161',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-    paddingHorizontal: 8,
+  block: {
+    marginBottom: spacing.md,
   },
-  explanationCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+  blockTitle: {
+    marginBottom: spacing.xs,
   },
-  explanationTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 6,
-  },
-  explanationText: {
-    fontSize: 13,
-    color: '#616161',
+  blockText: {
     lineHeight: 19,
   },
-  warningCard: {
-    backgroundColor: '#FFF8E1',
-    borderLeftWidth: 4,
-    borderLeftColor: '#FFA726',
+  warnHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  warningTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#E65100',
-    marginBottom: 6,
+  primary: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
-  warningText: {
-    fontSize: 13,
-    color: '#BF360C',
-    lineHeight: 19,
-  },
-  bold: {
-    fontWeight: '700',
-  },
-  // ── Grille des mots ──────────────────────────────────────────────────────
   wordsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-    width: '100%',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
     justifyContent: 'center',
   },
   wordCard: {
     width: '30%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  wordNumber: {
-    fontSize: 10,
-    color: '#BDBDBD',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  wordText: {
-    fontSize: 13,
-    color: '#212121',
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  // ── Aperçu de confirmation ───────────────────────────────────────────────
-  previewCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  previewTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#212121',
-    marginBottom: 4,
-  },
-  previewSubtitle: {
-    fontSize: 12,
-    color: '#9E9E9E',
-    marginBottom: 12,
+    borderColor: colors.border,
   },
   previewWords: {
-    gap: 6,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
-  previewWordRow: {
+  previewRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
-  previewWordNum: {
-    fontSize: 12,
-    color: '#BDBDBD',
+  previewNum: {
     width: 24,
     textAlign: 'right',
   },
-  previewWordText: {
-    fontSize: 14,
-    color: '#212121',
-    fontWeight: '600',
-  },
-  // ── Case à cocher ────────────────────────────────────────────────────────
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 20,
-    width: '100%',
-    padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
   },
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 4,
+    borderRadius: radii.sm,
     borderWidth: 2,
-    borderColor: '#BDBDBD',
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
     marginTop: 1,
   },
   checkboxChecked: {
-    backgroundColor: '#E91E63',
-    borderColor: '#E91E63',
-  },
-  checkboxMark: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '700',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   checkboxLabel: {
     flex: 1,
-    fontSize: 13,
-    color: '#424242',
     lineHeight: 19,
-  },
-  // ── Boutons ──────────────────────────────────────────────────────────────
-  primaryButton: {
-    backgroundColor: '#E91E63',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 12,
-    shadowColor: '#E91E63',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryButtonDisabled: {
-    backgroundColor: '#BDBDBD',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  secondaryButton: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    width: '100%',
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    color: '#9E9E9E',
-    fontWeight: '500',
   },
 })

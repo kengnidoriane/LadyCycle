@@ -3,7 +3,7 @@
  *
  * Responsabilités :
  * - Appeler VersionManager.migrate() au démarrage (Exigence 14.1)
- * - Afficher CalendarScreen comme écran principal
+ * - Déléguer le routage à AppNavigator (onboarding → main)
  * - Gérer les états de chargement et d'erreur de migration
  *
  * Architecture :
@@ -16,9 +16,13 @@
 import React, { useEffect, useState } from 'react'
 import { StatusBar, StyleSheet, View, Text, ActivityIndicator, useColorScheme } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { CalendarScreen } from './src/presentation/calendar/CalendarScreen'
+import { AppNavigator } from './src/presentation/navigation/AppNavigator'
+import { I18nProvider } from './src/presentation/i18n/I18nContext'
 import { InMemoryDatabase, InMemoryVersionManager } from './src/infrastructure/db/VersionManager'
 import { ALL_MIGRATIONS } from './src/infrastructure/db/schema'
+import { i18nService } from './src/infrastructure/i18n/I18nService'
+import { rescheduleNotifications } from './src/presentation/notifications/notificationScheduler'
+import { sharedRepository } from './src/presentation/calendar/useCalendar'
 
 // ─── Migration au démarrage ───────────────────────────────────────────────────
 
@@ -53,24 +57,50 @@ function App(): React.JSX.Element {
   >('pending')
   const [migrationError, setMigrationError] = useState<string | null>(null)
 
-  // Exigence 14.1 : appeler migrate() au démarrage de l'application
+  // Détecte la langue du système au premier rendu (via react-native-localize).
+  // Tombe sur 'fr' si la langue système n'est pas supportée ou indisponible.
+  // Note : quand un stockage persistant (SQLCipher) sera en place, une langue
+  // explicitement choisie par l'utilisatrice devra primer sur la détection.
+  const [initialLanguage] = useState(() => i18nService.detectSystemLanguage())
+
+  // Exigence 14.1 : migrer le schéma puis hydrater le stockage persistant
+  // (AsyncStorage) AVANT d'afficher l'app, pour que les données enregistrées
+  // lors des sessions précédentes soient disponibles dès le premier rendu.
   useEffect(() => {
-    const result = runMigrations()
-    if (result.ok) {
-      setMigrationState('success')
-    } else {
-      setMigrationError(result.error ?? 'Erreur de migration')
-      setMigrationState('error')
+    let cancelled = false
+    ;(async () => {
+      const result = runMigrations()
+      if (!result.ok) {
+        if (!cancelled) {
+          setMigrationError(result.error ?? 'Erreur de migration')
+          setMigrationState('error')
+        }
+        return
+      }
+      try {
+        await sharedRepository.hydrate()
+      } catch {
+        // L'hydratation est tolérante aux erreurs ; on démarre sur un état vide.
+      }
+      // Reprogramme les notifications selon les données rechargées (sans
+      // redemander la permission au démarrage — moment inopportun).
+      void rescheduleNotifications(false)
+      if (!cancelled) setMigrationState('success')
+    })()
+    return () => {
+      cancelled = true
     }
   }, [])
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent
-        migrationState={migrationState}
-        migrationError={migrationError}
-      />
+      <I18nProvider initialLanguage={initialLanguage}>
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+        <AppContent
+          migrationState={migrationState}
+          migrationError={migrationError}
+        />
+      </I18nProvider>
     </SafeAreaProvider>
   )
 }
@@ -106,8 +136,8 @@ function AppContent({ migrationState, migrationError }: AppContentProps): React.
     )
   }
 
-  // Migration réussie — afficher l'écran principal
-  return <CalendarScreen />
+  // Migration réussie — déléguer le routage à AppNavigator
+  return <AppNavigator />
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

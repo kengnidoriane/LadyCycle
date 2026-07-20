@@ -1,197 +1,131 @@
 /**
- * OvulationBlurZone — Zone de flou visuelle pour la date d'ovulation prédite.
+ * OvulationBlurZone — fenêtre d'ovulation présentée avec honnêteté.
  *
- * L'ovulation est biologiquement instable. Afficher une date précise donnerait
- * une fausse impression de certitude. Ce composant affiche la fenêtre d'ovulation
- * avec un gradient d'opacité pour communiquer honnêtement l'incertitude.
+ * L'ovulation est biologiquement instable : afficher une date précise serait
+ * mentir sur la certitude. On réduit donc l'opacité de la date estimée et on
+ * affiche un « ± quelques jours » assumé. Cohérent avec la philosophie de
+ * l'app : pas de fausse précision.
  *
- * Exigence 2.6 : présenter la date d'ovulation avec une zone de flou visuelle
- * distincte pour signaler son instabilité biologique.
+ * Exigence 2.6.
  */
 
 import React from 'react'
-import {
-  View,
-  Text,
-  StyleSheet,
-} from 'react-native'
-import type { OvulationWindow } from '../../domain/cycle/types'
-import type { ConfidenceResult } from '../../domain/cycle/types'
-import { ConfidenceBadge } from './ConfidenceBadge'
-
-// ─── Props ────────────────────────────────────────────────────────────────────
+import { View, StyleSheet } from 'react-native'
+import type { OvulationWindow, ConfidenceResult } from '../../domain/cycle/types'
+import { AppText, Card, Badge, Icon } from '../components'
+import { colors, spacing, radii } from '../theme'
+import { confidenceMeta } from '../shared/phaseMeta'
 
 interface OvulationBlurZoneProps {
   ovulation: OvulationWindow
   confidence: ConfidenceResult
+  lang?: 'fr' | 'en'
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Formate une CalendarDate (YYYY-MM-DD) en date lisible en français.
- * Ex : "2024-01-29" → "29 jan."
- */
-function formatDate(date: string): string {
+function formatDate(date: string, lang: 'fr' | 'en'): string {
   const [year, month, day] = date.split('-').map(Number)
   const d = new Date(Date.UTC(year, month - 1, day))
-  return d.toLocaleDateString('fr-FR', {
+  return d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR', {
     day: 'numeric',
     month: 'short',
     timeZone: 'UTC',
   })
 }
 
-// ─── Composant ────────────────────────────────────────────────────────────────
+const CONF_LABEL: Record<string, Record<'fr' | 'en', string>> = {
+  low: { fr: 'Confiance faible', en: 'Low confidence' },
+  medium: { fr: 'Confiance moyenne', en: 'Medium confidence' },
+  high: { fr: 'Confiance élevée', en: 'High confidence' },
+}
 
-/**
- * Affiche la fenêtre d'ovulation avec une zone de flou visuelle.
- *
- * Structure :
- * - Titre "Ovulation estimée" avec icône d'incertitude
- * - Date estimée centrale (opacité réduite pour signaler l'incertitude)
- * - Période féconde (début → fin)
- * - Badge de confiance
- *
- * Accessibilité : annonce la date estimée et la période féconde complète.
- */
 export function OvulationBlurZone({
   ovulation,
   confidence,
+  lang = 'fr',
 }: OvulationBlurZoneProps): React.JSX.Element {
-  const fertileStart = formatDate(ovulation.fertileWindowStart)
-  const fertileEnd = formatDate(ovulation.fertileWindowEnd)
-  const estimatedDate = formatDate(ovulation.estimatedDate)
+  const fertileStart = formatDate(ovulation.fertileWindowStart, lang)
+  const fertileEnd = formatDate(ovulation.fertileWindowEnd, lang)
+  const estimatedDate = formatDate(ovulation.estimatedDate, lang)
+  const ov = colors.phase.ovulation
+  const conf = confidenceMeta(confidence.level)
 
   const accessibilityLabel =
-    `Ovulation estimée le ${estimatedDate}. ` +
-    `Période féconde du ${fertileStart} au ${fertileEnd}. ` +
-    `Cette date est une estimation — la biologie est variable.`
+    lang === 'fr'
+      ? `Ovulation estimée le ${estimatedDate}. Période féconde du ${fertileStart} au ${fertileEnd}. Cette date est une estimation — la biologie est variable.`
+      : `Estimated ovulation on ${estimatedDate}. Fertile window from ${fertileStart} to ${fertileEnd}. This date is an estimate — biology varies.`
 
   return (
-    <View
-      style={styles.container}
-      accessible={true}
+    <Card
+      tint={ov.soft}
+      accent={ov.main}
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="text"
     >
-      {/* En-tête avec icône d'incertitude */}
       <View style={styles.header}>
-        <Text style={styles.uncertaintyIcon} accessibilityElementsHidden={true}>
-          〜
-        </Text>
-        <Text style={styles.title}>Ovulation estimée</Text>
+        <Icon name="flower" size={18} color={ov.text} />
+        <AppText variant="bodyStrong" style={{ color: ov.text }}>
+          {lang === 'fr' ? 'Ovulation estimée' : 'Estimated ovulation'}
+        </AppText>
       </View>
 
-      {/* Date centrale avec opacité réduite (zone de flou) */}
-      <View style={styles.blurZone} accessibilityElementsHidden={true}>
-        {/* Gradient simulé avec des vues superposées */}
-        <View style={[styles.blurEdge, styles.blurLeft]} />
-        <View style={styles.dateContainer}>
-          <Text style={styles.estimatedDate}>{estimatedDate}</Text>
-          <Text style={styles.uncertaintyNote}>± quelques jours</Text>
-        </View>
-        <View style={[styles.blurEdge, styles.blurRight]} />
+      {/* Date floue (opacité réduite = incertitude assumée) */}
+      <View style={styles.blurZone} accessibilityElementsHidden>
+        <AppText variant="h1" style={[styles.estimatedDate, { color: ov.text }]}>
+          {estimatedDate}
+        </AppText>
+        <AppText variant="caption" style={[styles.note, { color: ov.text }]}>
+          {lang === 'fr' ? '± quelques jours' : '± a few days'}
+        </AppText>
       </View>
 
       {/* Période féconde */}
-      <View style={styles.fertileWindow} accessibilityElementsHidden={true}>
-        <Text style={styles.fertileLabel}>Période féconde</Text>
-        <Text style={styles.fertileRange}>
+      <View style={[styles.fertileRow, { backgroundColor: colors.surface }]}>
+        <AppText variant="caption" tone="secondary">
+          {lang === 'fr' ? 'Période féconde' : 'Fertile window'}
+        </AppText>
+        <AppText variant="bodyStrong" style={{ color: ov.text }}>
           {fertileStart} → {fertileEnd}
-        </Text>
+        </AppText>
       </View>
 
-      {/* Indicateur de confiance */}
-      <ConfidenceBadge confidence={confidence} />
-    </View>
+      <View style={styles.badgeRow}>
+        <Badge
+          label={CONF_LABEL[confidence.level][lang]}
+          color={conf.text}
+          background={colors.surface}
+        />
+      </View>
+    </Card>
   )
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const OVULATION_COLOR = '#FFB74D'
-const OVULATION_BG = '#FFF8E1'
-
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: OVULATION_BG,
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: OVULATION_COLOR,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  uncertaintyIcon: {
-    fontSize: 18,
-    color: OVULATION_COLOR,
-    marginRight: 6,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#5D4037',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   blurZone: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    height: 56,
-  },
-  blurEdge: {
-    width: 32,
-    height: '100%',
-    borderRadius: 8,
-  },
-  blurLeft: {
-    // Simule un fondu depuis transparent vers la couleur
-    backgroundColor: OVULATION_BG,
-    opacity: 0.9,
-  },
-  blurRight: {
-    backgroundColor: OVULATION_BG,
-    opacity: 0.9,
-  },
-  dateContainer: {
-    flex: 1,
-    alignItems: 'center',
-    opacity: 0.75, // Opacité réduite pour signaler l'incertitude
+    marginBottom: spacing.md,
+    opacity: 0.72,
   },
   estimatedDate: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#E65100',
+    marginBottom: 2,
   },
-  uncertaintyNote: {
-    fontSize: 11,
-    color: '#BF360C',
-    marginTop: 2,
+  note: {
     fontStyle: 'italic',
   },
-  fertileWindow: {
+  fertileRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFE0B2',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 10,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
   },
-  fertileLabel: {
-    fontSize: 13,
-    color: '#E65100',
-    fontWeight: '500',
-  },
-  fertileRange: {
-    fontSize: 13,
-    color: '#BF360C',
-    fontWeight: '600',
+  badgeRow: {
+    flexDirection: 'row',
   },
 })
