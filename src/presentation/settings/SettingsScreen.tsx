@@ -22,6 +22,7 @@ import { SecurityScreen } from './SecurityScreen'
 import { Screen, AppText, Card, Button, Icon } from '../components'
 import type { IconName } from '../components'
 import { colors, spacing, radii } from '../theme'
+import { rescheduleNotifications } from '../notifications/notificationScheduler'
 import type { TrackingMode, MedicationReminder } from '../../infrastructure/db/CycleRepository'
 import type { SupportedLanguage } from '../../domain/shared/types'
 
@@ -123,6 +124,13 @@ export function SettingsScreen({ onNavigateToSecurity }: SettingsScreenProps): R
       ? current.filter((d) => d !== days)
       : [...current, days].sort((a, b) => b - a)
     await updateNotificationPreferences({ periodAdvanceNoticeDays: updated })
+    void rescheduleNotifications(false)
+  }
+
+  async function handleNotificationsEnabled(enabled: boolean): Promise<void> {
+    await updateNotificationPreferences({ enabled })
+    // Demande la permission au moment de l'activation.
+    void rescheduleNotifications(enabled)
   }
 
   return (
@@ -206,7 +214,7 @@ export function SettingsScreen({ onNavigateToSecurity }: SettingsScreenProps): R
         <Row label={fr ? 'Activer les notifications' : 'Enable notifications'}>
           <Switch
             value={notificationPreferences.enabled}
-            onValueChange={(enabled) => updateNotificationPreferences({ enabled })}
+            onValueChange={handleNotificationsEnabled}
             trackColor={SWITCH_TRACK}
             thumbColor={notificationPreferences.enabled ? colors.primary : colors.textTertiary}
           />
@@ -251,9 +259,10 @@ export function SettingsScreen({ onNavigateToSecurity }: SettingsScreenProps): R
                       key={days}
                       label={`${days}j`}
                       selected={isSelected}
-                      onPress={() =>
-                        updateNotificationPreferences({ fertileWindowAdvanceNoticeDays: days })
-                      }
+                      onPress={async () => {
+                        await updateNotificationPreferences({ fertileWindowAdvanceNoticeDays: days })
+                        void rescheduleNotifications(false)
+                      }}
                       accessibilityLabel={fr ? `${days} jour${days > 1 ? 's' : ''} avant` : `${days} day${days > 1 ? 's' : ''} before`}
                     />
                   )
@@ -309,22 +318,22 @@ export function SettingsScreen({ onNavigateToSecurity }: SettingsScreenProps): R
         </TouchableOpacity>
       </Section>
 
-      {/* Sécurité */}
-      <Section title={fr ? 'Sécurité et confidentialité' : 'Security & privacy'}>
+      {/* Confidentialité */}
+      <Section title={fr ? 'Confidentialité' : 'Privacy'}>
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.navRow}
             onPress={onNavigateToSecurity ?? (() => setShowSecurity(true))}
             accessibilityRole="button"
-            accessibilityLabel={fr ? 'Accéder aux paramètres de sécurité' : 'Open security settings'}
+            accessibilityLabel={fr ? 'Voir comment mes données sont gérées' : 'See how my data is handled'}
           >
             <Icon name="lock" size={22} color={colors.primaryDark} />
             <View style={styles.navText}>
               <AppText variant="bodyStrong">
-                {fr ? 'Authentification et chiffrement' : 'Authentication & encryption'}
+                {fr ? 'Comment tes données sont gérées' : 'How your data is handled'}
               </AppText>
               <AppText variant="caption" tone="secondary">
-                {fr ? 'PIN, biométrie, Kit de Récupération, sauvegarde cloud' : 'PIN, biometrics, Recovery Kit, cloud backup'}
+                {fr ? 'Sur ton téléphone, sans compte' : 'On your phone, no account'}
               </AppText>
             </View>
             <Icon name="chevronRight" size={20} color={colors.textTertiary} />
@@ -334,7 +343,7 @@ export function SettingsScreen({ onNavigateToSecurity }: SettingsScreenProps): R
       <View style={styles.privacyFooter}>
         <Icon name="lock" size={14} color={colors.success} />
         <AppText variant="caption" style={{ color: colors.phase.follicular.text }}>
-          {fr ? 'Tes données restent sur ton appareil, chiffrées.' : 'Your data stays on your device, encrypted.'}
+          {fr ? 'Tes données restent sur ton appareil.' : 'Your data stays on your device.'}
         </AppText>
       </View>
 

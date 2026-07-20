@@ -124,6 +124,7 @@ export class NotificationManager {
   async schedulePeriodNotifications(
     prediction: Prediction<DateRange>,
     preferences: NotificationPreferences,
+    lang: 'fr' | 'en' = 'fr',
   ): Promise<void> {
     // Si les notifications sont désactivées, ne rien faire
     if (!preferences.enabled) {
@@ -148,12 +149,15 @@ export class NotificationManager {
       // Include index to ensure uniqueness when delays array has duplicates
       const notificationId = `period_${daysAdvance}d_${predictedDate}_${index}`
 
+      const fr = lang !== 'en'
       const notification: ScheduledNotification = {
         id: notificationId,
         type: 'period',
         scheduledDate: notificationDate,
-        title: 'Règles prévues bientôt',
-        body: `Vos règles sont prévues dans ${daysAdvance} jour${daysAdvance > 1 ? 's' : ''}`,
+        title: fr ? 'Tes règles approchent' : 'Your period is coming',
+        body: fr
+          ? `Tes règles sont prévues dans ${daysAdvance} jour${daysAdvance > 1 ? 's' : ''}.`
+          : `Your period is expected in ${daysAdvance} day${daysAdvance > 1 ? 's' : ''}.`,
         data: {
           predictedDate,
           daysAdvance,
@@ -185,6 +189,7 @@ export class NotificationManager {
     prediction: Prediction<OvulationWindow>,
     mode: TrackingMode,
     preferences: NotificationPreferences,
+    lang: 'fr' | 'en' = 'fr',
   ): Promise<void> {
     // Check if notifications are enabled globally
     if (!preferences.enabled) {
@@ -200,23 +205,28 @@ export class NotificationManager {
     // Annuler les anciennes notifications de période féconde
     this.cancelNotificationsByType('fertile_window')
 
-    // Adapter le message selon le mode
+    // Adapter le message selon le mode et la langue
+    const fr = lang !== 'en'
     let title: string
     let body: string
 
     switch (mode) {
       case 'trying_to_conceive':
-        title = 'Période féconde optimale'
-        body = 'Votre période féconde commence bientôt. C\'est le moment idéal pour concevoir.'
+        title = fr ? 'Période féconde optimale' : 'Optimal fertile window'
+        body = fr
+          ? 'Ta période féconde commence bientôt. C’est le moment idéal pour concevoir.'
+          : 'Your fertile window is starting soon. It’s the ideal time to conceive.'
         break
       case 'natural_contraception':
-        title = 'Attention : période à risque'
-        body = 'Votre période féconde commence bientôt. Soyez vigilante si vous utilisez la contraception naturelle.'
+        title = fr ? 'Attention : période à risque' : 'Heads up: high-risk days'
+        body = fr
+          ? 'Ta période féconde commence bientôt. Sois vigilante si tu utilises la contraception naturelle.'
+          : 'Your fertile window is starting soon. Be careful if you rely on natural contraception.'
         break
       case 'general':
       default:
-        title = 'Période féconde'
-        body = 'Votre période féconde commence bientôt.'
+        title = fr ? 'Période féconde' : 'Fertile window'
+        body = fr ? 'Ta période féconde commence bientôt.' : 'Your fertile window is starting soon.'
         break
     }
 
@@ -299,6 +309,7 @@ export class NotificationManager {
     reminders: MedicationReminder[],
     predictedPeriodDate: CalendarDate,
     preferences: NotificationPreferences,
+    lang: 'fr' | 'en' = 'fr',
   ): Promise<void> {
     // Check if notifications are enabled globally
     if (!preferences.enabled) {
@@ -325,6 +336,7 @@ export class NotificationManager {
         continue
       }
 
+      const fr = lang !== 'en'
       const notificationDate = this.subtractDays(predictedPeriodDate, reminder.timingBeforePeriod)
       const notificationId = `medication_${reminder.id}_${predictedPeriodDate}`
 
@@ -332,8 +344,10 @@ export class NotificationManager {
         id: notificationId,
         type: 'medication',
         scheduledDate: notificationDate,
-        title: `Rappel : ${reminder.name}`,
-        body: `N'oubliez pas de prendre ${reminder.name} à ${reminder.timeOfDay}`,
+        title: fr ? `Rappel : ${reminder.name}` : `Reminder: ${reminder.name}`,
+        body: fr
+          ? `N'oublie pas de prendre ${reminder.name} à ${reminder.timeOfDay}.`
+          : `Don't forget to take ${reminder.name} at ${reminder.timeOfDay}.`,
         data: {
           reminderId: reminder.id,
           medicationName: reminder.name,

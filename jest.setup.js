@@ -58,3 +58,17 @@ jest.mock('react-native-svg', () => {
     ClipPath: mockComponent('ClipPath'),
   }
 })
+
+// Mock Notifee : évite de charger le module natif pendant les tests.
+jest.mock('@notifee/react-native', () => ({
+  __esModule: true,
+  default: {
+    requestPermission: jest.fn(async () => ({ authorizationStatus: 1 })),
+    createChannel: jest.fn(async () => 'cycle'),
+    createTriggerNotification: jest.fn(async () => {}),
+    cancelNotification: jest.fn(async () => {}),
+    cancelAllNotifications: jest.fn(async () => {}),
+  },
+  AndroidImportance: { HIGH: 4 },
+  TriggerType: { TIMESTAMP: 0 },
+}))

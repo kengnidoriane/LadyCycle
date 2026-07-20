@@ -19,6 +19,7 @@ import { today as todayDate, diffDays } from '../../domain/shared/calendarDate'
 import { AppText, Button, Icon } from '../components'
 import { colors, spacing, radii } from '../theme'
 import { useI18n } from '../i18n/I18nContext'
+import { rescheduleNotifications } from '../notifications/notificationScheduler'
 
 interface RecordPeriodFormProps {
   initialStartDate?: CalendarDate | null
@@ -98,6 +99,9 @@ export function RecordPeriodForm({
       const useCase = new RecordPeriodUseCase(sharedRepository)
       const result = await useCase.execute(startDate, finalEnd)
       if (result.ok) {
+        // (Re)programme les notifications selon la nouvelle prédiction.
+        // Demande la permission ici : moment naturel (l'utilisatrice vient d'agir).
+        void rescheduleNotifications(true)
         onSuccess()
       } else {
         setError(result.error.message || (fr ? 'Une erreur est survenue. Réessaie.' : 'An error occurred. Please try again.'))

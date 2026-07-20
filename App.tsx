@@ -21,6 +21,7 @@ import { I18nProvider } from './src/presentation/i18n/I18nContext'
 import { InMemoryDatabase, InMemoryVersionManager } from './src/infrastructure/db/VersionManager'
 import { ALL_MIGRATIONS } from './src/infrastructure/db/schema'
 import { i18nService } from './src/infrastructure/i18n/I18nService'
+import { rescheduleNotifications } from './src/presentation/notifications/notificationScheduler'
 import { sharedRepository } from './src/presentation/calendar/useCalendar'
 
 // ─── Migration au démarrage ───────────────────────────────────────────────────
@@ -81,6 +82,9 @@ function App(): React.JSX.Element {
       } catch {
         // L'hydratation est tolérante aux erreurs ; on démarre sur un état vide.
       }
+      // Reprogramme les notifications selon les données rechargées (sans
+      // redemander la permission au démarrage — moment inopportun).
+      void rescheduleNotifications(false)
       if (!cancelled) setMigrationState('success')
     })()
     return () => {
